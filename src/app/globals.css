@@ -1,0 +1,334 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   Trackfolio design system
+   --------------------------------------------------------------------------
+   Colours are authored in OKLCH so that light and dark themes share the same
+   lightness ramp and every accent keeps a consistent perceived brightness.
+   Tailwind v4 reads these via `@theme inline`.
+   ========================================================================== */
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root,
+[data-theme="light"] {
+  /* Surfaces — warm neutral, low chroma. */
+  --bg: oklch(97.8% 0.003 106);
+  --surface: oklch(100% 0 0);
+  --surface-2: oklch(96.2% 0.004 106);
+  --surface-3: oklch(93.6% 0.005 106);
+  --sunken: oklch(94.8% 0.004 106);
+  --overlay: oklch(20% 0.02 265 / 0.42);
+
+  /* Ink */
+  --ink: oklch(21% 0.012 265);
+  --ink-2: oklch(46% 0.012 265);
+  --ink-3: oklch(62% 0.011 265);
+  --ink-inverse: oklch(98% 0.002 106);
+
+  /* Lines */
+  --line: oklch(90.5% 0.005 106);
+  --line-2: oklch(84% 0.007 106);
+  --line-strong: oklch(72% 0.01 265);
+
+  /* Accent */
+  --primary: oklch(52% 0.19 264);
+  --primary-hover: oklch(47% 0.2 264);
+  --primary-soft: oklch(95% 0.03 264);
+  --primary-border: oklch(84% 0.08 264);
+  --primary-ink: oklch(40% 0.18 264);
+  --on-primary: oklch(99% 0 0);
+
+  /* Semantic */
+  --ok: oklch(52% 0.14 152);
+  --ok-soft: oklch(95.5% 0.035 152);
+  --ok-border: oklch(83% 0.09 152);
+
+  --warn: oklch(60% 0.13 75);
+  --warn-soft: oklch(96% 0.045 85);
+  --warn-border: oklch(85% 0.09 80);
+
+  --bad: oklch(54% 0.19 27);
+  --bad-soft: oklch(96% 0.03 27);
+  --bad-border: oklch(85% 0.08 27);
+
+  --info: oklch(55% 0.13 235);
+  --info-soft: oklch(96% 0.03 235);
+
+  /* Diff */
+  --diff-add-bg: oklch(95% 0.05 152);
+  --diff-add-ink: oklch(42% 0.14 152);
+  --diff-del-bg: oklch(95.5% 0.04 27);
+  --diff-del-ink: oklch(48% 0.17 27);
+
+  /* Elevation */
+  --shadow-xs: 0 1px 2px oklch(20% 0.02 265 / 0.05);
+  --shadow-sm: 0 1px 2px oklch(20% 0.02 265 / 0.06), 0 2px 6px oklch(20% 0.02 265 / 0.04);
+  --shadow-md: 0 2px 4px oklch(20% 0.02 265 / 0.05), 0 8px 20px oklch(20% 0.02 265 / 0.07);
+  --shadow-lg: 0 4px 8px oklch(20% 0.02 265 / 0.06), 0 20px 48px oklch(20% 0.02 265 / 0.12);
+  --ring: 0 0 0 3px var(--primary-soft);
+}
+
+[data-theme="dark"] {
+  --bg: oklch(17.5% 0.008 265);
+  --surface: oklch(21% 0.009 265);
+  --surface-2: oklch(24.5% 0.01 265);
+  --surface-3: oklch(28% 0.012 265);
+  --sunken: oklch(15% 0.008 265);
+  --overlay: oklch(8% 0.01 265 / 0.62);
+
+  --ink: oklch(94% 0.004 106);
+  --ink-2: oklch(74% 0.008 265);
+  --ink-3: oklch(58% 0.01 265);
+  --ink-inverse: oklch(18% 0.01 265);
+
+  --line: oklch(28.5% 0.012 265);
+  --line-2: oklch(35% 0.014 265);
+  --line-strong: oklch(48% 0.016 265);
+
+  --primary: oklch(68% 0.16 264);
+  --primary-hover: oklch(73% 0.16 264);
+  --primary-soft: oklch(29% 0.06 264);
+  --primary-border: oklch(42% 0.11 264);
+  --primary-ink: oklch(80% 0.12 264);
+  --on-primary: oklch(16% 0.02 264);
+
+  --ok: oklch(72% 0.15 152);
+  --ok-soft: oklch(27% 0.05 152);
+  --ok-border: oklch(40% 0.09 152);
+
+  --warn: oklch(78% 0.14 80);
+  --warn-soft: oklch(28% 0.05 80);
+  --warn-border: oklch(42% 0.08 80);
+
+  --bad: oklch(69% 0.17 25);
+  --bad-soft: oklch(27% 0.06 25);
+  --bad-border: oklch(42% 0.11 25);
+
+  --info: oklch(72% 0.12 235);
+  --info-soft: oklch(27% 0.05 235);
+
+  --diff-add-bg: oklch(27% 0.055 152);
+  --diff-add-ink: oklch(80% 0.14 152);
+  --diff-del-bg: oklch(27% 0.06 25);
+  --diff-del-ink: oklch(78% 0.14 25);
+
+  --shadow-xs: 0 1px 2px oklch(0% 0 0 / 0.3);
+  --shadow-sm: 0 1px 2px oklch(0% 0 0 / 0.35), 0 2px 6px oklch(0% 0 0 / 0.25);
+  --shadow-md: 0 2px 4px oklch(0% 0 0 / 0.35), 0 8px 20px oklch(0% 0 0 / 0.35);
+  --shadow-lg: 0 4px 8px oklch(0% 0 0 / 0.4), 0 20px 48px oklch(0% 0 0 / 0.5);
+  --ring: 0 0 0 3px oklch(68% 0.16 264 / 0.28);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-sunken: var(--sunken);
+  --color-overlay: var(--overlay);
+
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-ink-inverse: var(--ink-inverse);
+
+  --color-line: var(--line);
+  --color-line-2: var(--line-2);
+  --color-line-strong: var(--line-strong);
+
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-border: var(--primary-border);
+  --color-primary-ink: var(--primary-ink);
+  --color-on-primary: var(--on-primary);
+
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-ok-border: var(--ok-border);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-warn-border: var(--warn-border);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --color-bad-border: var(--bad-border);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+
+  --color-diff-add-bg: var(--diff-add-bg);
+  --color-diff-add-ink: var(--diff-add-ink);
+  --color-diff-del-bg: var(--diff-del-bg);
+  --color-diff-del-ink: var(--diff-del-ink);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono-code), ui-monospace, "SF Mono", Menlo, monospace;
+
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  --animate-fade-in: fade-in 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-slide-up: slide-up 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-scale-in: scale-in 0.16s cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-shimmer: shimmer 1.6s linear infinite;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to { background-position: 200% 0; }
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+
+@layer base {
+  * {
+    border-color: var(--line);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Visible, consistent focus for keyboard users only. */
+  :focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: var(--radius-xs);
+  }
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  ::selection {
+    background: var(--primary-soft);
+    color: var(--primary-ink);
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+    font-weight: 650;
+    color: var(--ink);
+  }
+
+  /* Tabular numerals keep metric columns from jittering as values change. */
+  .tabular,
+  table td,
+  .metric-value {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-2) transparent;
+  }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--line-2);
+    border-radius: 6px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background-clip: content-box; background-color: var(--line-strong); }
+
+  input, textarea, select, button { font: inherit; color: inherit; }
+
+  input::placeholder, textarea::placeholder { color: var(--ink-3); }
+
+  /* Native date/time pickers are near-invisible in dark mode without this. */
+  [data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator,
+  [data-theme="dark"] input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.8);
+  }
+
+  dialog::backdrop { background: var(--overlay); backdrop-filter: blur(4px); }
+}
+
+@layer utilities {
+  .text-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    line-height: 1.4;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--surface-2) 25%,
+      var(--surface-3) 50%,
+      var(--surface-2) 75%
+    );
+    background-size: 200% 100%;
+    animation: var(--animate-shimmer);
+  }
+
+  /* Accessible hiding: available to screen readers, invisible on screen. */
+  .sr-only-focusable:not(:focus):not(:focus-within) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+}
