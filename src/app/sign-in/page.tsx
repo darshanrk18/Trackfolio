@@ -1,0 +1,144 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import type { Metadata } from "next";
+import { GitBranch, Lock, Shield } from "lucide-react";
+import { currentUser } from "@/server/auth";
+import { features } from "@/env";
+import { Logo } from "@/components/shell/logo";
+import { SignInForm } from "./sign-in-form";
+
+export const metadata: Metadata = {
+  title: "Sign in",
+  description: "Sign in to Trackfolio.",
+};
+
+const AUTH_ERRORS: Record<string, string> = {
+  OAuthAccountNotLinked:
+    "That email is already registered with a different sign-in method. Use the provider you signed up with.",
+  AccessDenied: "Access was denied by the provider.",
+  Verification: "That sign-in link has expired or was already used.",
+  Configuration:
+    "Authentication is not configured on this deployment. Check the server environment variables.",
+  Default: "Something went wrong signing you in. Please try again.",
+};
+
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; callbackUrl?: string }>;
+}) {
+  if (await currentUser()) redirect("/dashboard");
+
+  const params = await searchParams;
+  const error = params.error ? (AUTH_ERRORS[params.error] ?? AUTH_ERRORS.Default) : null;
+
+  const available = {
+    github: features.githubAuth,
+    google: features.googleAuth,
+    email: features.email,
+  };
+  const anyProvider = available.github || available.google || available.email;
+
+  return (
+    <div className="grid min-h-dvh lg:grid-cols-2">
+      {/* Form side */}
+      <div className="flex flex-col justify-center px-6 py-12 sm:px-12">
+        <div className="mx-auto w-full max-w-sm">
+          <Logo href="/" className="mb-10" />
+
+          <h1 className="font-display text-[26px] font-bold tracking-[-0.02em]">
+            Welcome back
+          </h1>
+          <p className="text-ink-2 mt-1.5 text-[14px]">
+            Sign in to pick up your search where you left off.
+          </p>
+
+          {error && (
+            <div
+              role="alert"
+              className="bg-bad-soft border-bad-border text-bad mt-5 rounded-[var(--radius-md)] border px-3.5 py-2.5 text-[13px]"
+            >
+              {error}
+            </div>
+          )}
+
+          {anyProvider ? (
+            <SignInForm
+              available={available}
+              callbackUrl={params.callbackUrl ?? "/dashboard"}
+            />
+          ) : (
+            <div className="bg-warn-soft border-warn-border text-ink mt-6 rounded-[var(--radius-md)] border px-4 py-3.5 text-[13px]">
+              <p className="font-semibold">No sign-in provider is configured.</p>
+              <p className="text-ink-2 mt-1.5">
+                Set <code className="font-mono text-[12px]">AUTH_GITHUB_ID</code> /{" "}
+                <code className="font-mono text-[12px]">AUTH_GITHUB_SECRET</code>,
+                the Google equivalents, or{" "}
+                <code className="font-mono text-[12px]">RESEND_API_KEY</code> for
+                email links, then restart the server.
+              </p>
+            </div>
+          )}
+
+          <p className="text-ink-3 mt-8 text-[11.5px] leading-relaxed">
+            By continuing you agree that Trackfolio stores the documents and
+            application records you create. You can export or permanently delete
+            all of it at any time from{" "}
+            <span className="text-ink-2">Settings → Data</span>.
+          </p>
+
+          <Link
+            href="/"
+            className="text-ink-3 hover:text-ink mt-6 inline-block text-[12.5px] transition-colors"
+          >
+            ← Back to home
+          </Link>
+        </div>
+      </div>
+
+      {/* Pitch side */}
+      <div className="bg-surface border-line hidden flex-col justify-center border-l px-12 lg:flex">
+        <div className="max-w-md">
+          <p className="text-eyebrow mb-3">Why Trackfolio</p>
+          <h2 className="font-display text-[22px] leading-snug font-bold tracking-[-0.02em]">
+            The resume you sent should never disappear.
+          </h2>
+
+          <ul className="mt-7 space-y-5">
+            {[
+              {
+                icon: GitBranch,
+                title: "Branch, don't overwrite",
+                body: "Tailor freely for each company while your master resume stays protected and intact.",
+              },
+              {
+                icon: Lock,
+                title: "Frozen submissions",
+                body: "Every application keeps a permanent copy of the exact documents and job posting involved.",
+              },
+              {
+                icon: Shield,
+                title: "AI that stays honest",
+                body: "Suggestions are grounded in your real experience. Gaps get reported, never invented.",
+              },
+            ].map((item) => (
+              <li key={item.title} className="flex gap-3.5">
+                <span className="bg-primary-soft text-primary-ink flex size-8 shrink-0 items-center justify-center rounded-[var(--radius-md)]">
+                  <item.icon className="size-4" aria-hidden />
+                </span>
+                <span>
+                  <span className="block text-[13.5px] font-semibold">
+                    {item.title}
+                  </span>
+                  <span className="text-ink-2 mt-0.5 block text-[13px] leading-relaxed">
+                    {item.body}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
