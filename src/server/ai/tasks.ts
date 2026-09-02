@@ -11,7 +11,16 @@ import {
   REWRITE_BULLET_SYSTEM,
   TAILOR_RESUME_SYSTEM,
 } from "./prompts";
-import { getModel, isAiEnabled, recordAiRun, type AiTask } from "./provider";
+import {
+  applyAnthropicWorkspace,
+  discoverAnthropicWorkspace,
+  getModel,
+  isAiEnabled,
+  recordAiRun,
+  skipAnthropic,
+  type AiTask,
+} from "./provider";
+import { errorText, isAnthropicConfigError, workspaceIdFromError } from "./provider-select";
 
 /**
  * The AI task layer. Each task owns its output schema, its prompt assembly, and
@@ -48,22 +57,22 @@ async function runStructured<S extends z.ZodType>({
     throw new Error("AI is not configured");
   }
 
-  const { model, provider, modelId } = getModel(task);
   const startedAt = performance.now();
+  let resolved = getModel(task);
 
-  try {
+  const call = async () => {
     // `generateObject` is deprecated in AI SDK v7 in favour of `generateText`
     // with an `output` specification. Every structured call funnels through
     // here, so that migration is a change to this function alone.
     const result = await generateObject({
-      model,
+      model: resolved.model,
       schema,
       schemaName,
       system,
       prompt,
       // OpenAI's reasoning models reject any temperature other than the
       // default, so it is only applied where it is actually supported.
-      ...(provider === "anthropic" ? { temperature } : {}),
+      ...(resolved.provider === "anthropic" ? { temperature } : {}),
       maxRetries: 2,
     });
 
@@ -72,8 +81,8 @@ async function runStructured<S extends z.ZodType>({
       userId: ctx.userId,
       applicationId: ctx.applicationId,
       task,
-      provider,
-      modelId,
+      provider: resolved.provider,
+      modelId: resolved.modelId,
       status: "success",
       inputTokens: result.usage.inputTokens ?? 0,
       outputTokens: result.usage.outputTokens ?? 0,
@@ -83,22 +92,97 @@ async function runStructured<S extends z.ZodType>({
     });
 
     return result.object as z.infer<S>;
+  };
+
+  try {
+    return await call();
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    logger.error({ err: error, task, provider, modelId }, "ai task failed");
+    const message = errorText(error);
+    logger.error(
+      { err: error, task, provider: resolved.provider, modelId: resolved.modelId },
+      "ai task failed",
+    );
 
     await recordAiRun({
       db: ctx.db,
       userId: ctx.userId,
       applicationId: ctx.applicationId,
       task,
-      provider,
-      modelId,
+      provider: resolved.provider,
+      modelId: resolved.modelId,
       status: "error",
       durationMs: Math.round(performance.now() - startedAt),
       prompt,
       error: message,
     });
+
+    if (resolved.provider === "anthropic" && isAnthropicConfigError(error)) {
+      const fromError = workspaceIdFromError(error);
+      if (fromError) applyAnthropicWorkspace(fromError);
+      const workspace = fromError ?? (await discoverAnthropicWorkspace());
+      if (workspace) {
+        logger.warn({ task, workspace: workspace.slice(0, 12) }, "retrying Anthropic with workspace id");
+        resolved = getModel(task);
+        try {
+          return await call();
+        } catch (retryError) {
+          logger.error(
+            { err: retryError, task, provider: resolved.provider, modelId: resolved.modelId },
+            "ai task failed after workspace retry",
+          );
+          await recordAiRun({
+            db: ctx.db,
+            userId: ctx.userId,
+            applicationId: ctx.applicationId,
+            task,
+            provider: resolved.provider,
+            modelId: resolved.modelId,
+            status: "error",
+            durationMs: Math.round(performance.now() - startedAt),
+            prompt,
+            error: errorText(retryError),
+          });
+        }
+      }
+
+      skipAnthropic(message);
+      try {
+        resolved = getModel(task, "openai");
+      } catch {
+        throw new Error(`The model could not complete this request: ${message}`);
+      }
+      logger.warn(
+        { task, from: "anthropic", to: resolved.modelId },
+        "retrying AI task on OpenAI after Anthropic config error",
+      );
+      try {
+        return await call();
+      } catch (fallbackError) {
+        const fallbackMessage = errorText(fallbackError);
+        logger.error(
+          {
+            err: fallbackError,
+            task,
+            provider: resolved.provider,
+            modelId: resolved.modelId,
+          },
+          "ai fallback task failed",
+        );
+        await recordAiRun({
+          db: ctx.db,
+          userId: ctx.userId,
+          applicationId: ctx.applicationId,
+          task,
+          provider: resolved.provider,
+          modelId: resolved.modelId,
+          status: "error",
+          durationMs: Math.round(performance.now() - startedAt),
+          prompt,
+          error: fallbackMessage,
+        });
+        throw new Error(`The model could not complete this request: ${fallbackMessage}`);
+      }
+    }
 
     throw new Error(`The model could not complete this request: ${message}`);
   }
@@ -261,8 +345,14 @@ const tailorResumeSchema = z.object({
         .describe("Resume section the edit belongs to, e.g. Experience."),
       original: z
         .string()
-        .describe("Exact text from the source, copied character for character."),
-      revised: z.string(),
+        .describe(
+          "Exact contiguous span copied from RESUME SOURCE, including LaTeX commands, braces, and escapes (\\&, \\%, \\$). Must be locatable with a search.",
+        ),
+      revised: z
+        .string()
+        .describe(
+          "Drop-in replacement of that same span. Keep surrounding LaTeX macros and escapes unless the edit is specifically removing them.",
+        ),
       reason: z.string(),
     }),
   ),

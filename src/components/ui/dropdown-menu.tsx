@@ -58,12 +58,13 @@ export const DropdownMenuItem = React.forwardRef<
   React.ComponentRef<typeof DropdownMenuPrimitive.Item>,
   DropdownMenuItemProps
 >(function DropdownMenuItem(
-  { className, destructive, icon, shortcut, children, ...props },
+  { className, destructive, icon, shortcut, children, asChild = false, ...props },
   ref,
 ) {
   return (
     <DropdownMenuPrimitive.Item
       ref={ref}
+      asChild={asChild}
       className={cn(
         itemClasses,
         destructive
@@ -73,12 +74,19 @@ export const DropdownMenuItem = React.forwardRef<
       )}
       {...props}
     >
-      {icon}
-      <span className="min-w-0 flex-1 truncate">{children}</span>
-      {shortcut && (
-        <span className="text-ink-3 ml-2 font-mono text-[10.5px] tracking-widest" aria-hidden>
-          {shortcut}
-        </span>
+      {/* Radix Slot (asChild) requires a single child. Do not inject icon/span. */}
+      {asChild ? (
+        children
+      ) : (
+        <>
+          {icon}
+          <span className="min-w-0 flex-1 truncate">{children}</span>
+          {shortcut && (
+            <span className="text-ink-3 ml-2 font-mono text-[10.5px] tracking-widest" aria-hidden>
+              {shortcut}
+            </span>
+          )}
+        </>
       )}
     </DropdownMenuPrimitive.Item>
   );

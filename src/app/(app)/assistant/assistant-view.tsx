@@ -11,12 +11,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, Input, NativeSelect, Textarea } from "@/components/ui/field";
 import { EmptyState, Skeleton } from "@/components/ui/feedback";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ResumeSourceSelect, useResumeSource } from "@/components/app/resume-source-select";
+import { TailorPanel } from "./tailor-panel";
 
 export function AssistantView() {
   const trpc = useTRPC();
   const enabled = useQuery(trpc.ai.enabled.queryOptions());
   const usage = useQuery(trpc.ai.usage.queryOptions());
-  const workspace = useQuery(trpc.documents.workspace.queryOptions({ kind: "resume" }));
+  const { branch, content: resume } = useResumeSource();
 
   const [bullet, setBullet] = React.useState("");
   const [jd, setJd] = React.useState("");
@@ -25,8 +27,6 @@ export function AssistantView() {
   const [tone, setTone] = React.useState<"professional" | "warm" | "direct" | "enthusiastic">(
     "professional",
   );
-
-  const resume = workspace.data?.master?.content ?? "";
 
   const rewrite = useMutation(trpc.ai.rewriteBullet.mutationOptions({
     onError: (e) => toast.error(e.message),
@@ -60,13 +60,16 @@ export function AssistantView() {
       <PageHeader
         eyebrow="Grounded in your source document"
         title="AI Assistant"
-        description="Rewrite bullets, find honest gaps, tailor a branch, or draft a cover letter. Gaps get reported. Fabrications get refused."
+        description="Rewrite bullets, find honest gaps, tailor a branch, or draft a cover letter against the resume you select. Gaps get reported. Fabrications get refused."
         actions={
-          usage.data && (
-            <span className="text-ink-3 font-mono text-[11px]">
-              {usage.data.runs} runs this month
-            </span>
-          )
+          <div className="flex flex-col items-end gap-2">
+            <ResumeSourceSelect />
+            {usage.data && (
+              <span className="text-ink-3 font-mono text-[11px]">
+                {usage.data.runs} runs this month
+              </span>
+            )}
+          </div>
         }
       />
       <div className="bg-ok-soft text-ok mb-4 flex items-start gap-2 rounded-[8px] px-3 py-2.5 text-[12.5px]">
@@ -133,7 +136,7 @@ export function AssistantView() {
           <Button
             variant="primary"
             loading={gaps.isPending}
-            disabled={!jd.trim()}
+            disabled={!jd.trim() || !resume.trim()}
             onClick={() => gaps.mutate({ resume, jobDescription: jd })}
           >
             Find honest gaps
@@ -159,6 +162,10 @@ export function AssistantView() {
         </TabsContent>
 
         <TabsContent value="tailor">
+          <p className="text-ink-2 mb-2 text-[12.5px]">
+            Grounded in the selected resume. Apply writes a new branch — master
+            is never overwritten.
+          </p>
           <div className="mb-2 grid gap-2 sm:grid-cols-2">
             <Input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Company" />
             <Input value={role} onChange={(e) => setRole(e.target.value)} placeholder="Role" />
@@ -166,35 +173,27 @@ export function AssistantView() {
           <Button
             variant="primary"
             loading={tailor.isPending}
-            disabled={!jd.trim()}
+            disabled={!jd.trim() || !resume.trim()}
             onClick={() =>
-              tailor.mutate({ resume, jobDescription: jd, company, role })
+              tailor.mutate({
+                resume,
+                jobDescription: jd,
+                company: company.trim() || branch?.company || undefined,
+                role: role.trim() || branch?.role || undefined,
+              })
             }
           >
             Propose tailoring
           </Button>
           {tailor.data && (
-            <div className="mt-3 space-y-2">
-              {tailor.data.edits.map((edit, i) => (
-                <Card key={i}>
-                  <CardHeader>
-                    <CardTitle>{edit.section}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="text-[13px]">
-                    <p className="text-bad line-through">{edit.original}</p>
-                    <p className="text-ok mt-1">{edit.revised}</p>
-                    <p className="text-ink-2 mt-1 text-[12.5px]">{edit.reason}</p>
-                  </CardContent>
-                </Card>
-              ))}
-              {tailor.data.refusals.length > 0 && (
-                <div className="bg-warn-soft rounded-[8px] px-3 py-2 text-[12.5px]">
-                  {tailor.data.refusals.map((r) => (
-                    <p key={r}>{r}</p>
-                  ))}
-                </div>
-              )}
-            </div>
+            <TailorPanel
+              resume={resume}
+              company={company.trim() || branch?.company || ""}
+              role={role.trim() || branch?.role || ""}
+              sourceBranchId={branch?.id ?? null}
+              sourceIsMaster={Boolean(branch?.isMaster)}
+              result={tailor.data}
+            />
           )}
         </TabsContent>
 
@@ -217,9 +216,15 @@ export function AssistantView() {
           <Button
             variant="primary"
             loading={cover.isPending}
-            disabled={!jd.trim()}
+            disabled={!jd.trim() || !resume.trim()}
             onClick={() =>
-              cover.mutate({ resume, jobDescription: jd, company, role, tone })
+              cover.mutate({
+                resume,
+                jobDescription: jd,
+                company: company.trim() || branch?.company || undefined,
+                role: role.trim() || branch?.role || undefined,
+                tone,
+              })
             }
           >
             Draft cover letter

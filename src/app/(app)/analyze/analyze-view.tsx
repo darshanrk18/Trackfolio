@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useTRPC } from "@/trpc/react";
 import { PageHeader } from "@/components/app/page-header";
 import { HealthPanel } from "@/components/app/health-panel";
+import { ResumeSourceSelect, useResumeSource } from "@/components/app/resume-source-select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/badge";
@@ -15,13 +16,22 @@ import { EmptyState, ErrorState, ProgressRing, Skeleton } from "@/components/ui/
 export function AnalyzeView() {
   const trpc = useTRPC();
   const qc = useQueryClient();
+  const { branch, workspace } = useResumeSource();
   const [jd, setJd] = React.useState("");
   const [submittedJd, setSubmittedJd] = React.useState("");
 
-  const health = useQuery(trpc.analysis.health.queryOptions({}));
+  const health = useQuery({
+    ...trpc.analysis.health.queryOptions(
+      branch?.id ? { branchId: branch.id } : {},
+    ),
+    enabled: Boolean(branch?.id),
+  });
   const match = useQuery({
-    ...trpc.analysis.jobMatch.queryOptions({ jobDescription: submittedJd }),
-    enabled: submittedJd.trim().length > 0,
+    ...trpc.analysis.jobMatch.queryOptions({
+      jobDescription: submittedJd,
+      ...(branch?.id ? { branchId: branch.id } : {}),
+    }),
+    enabled: submittedJd.trim().length > 0 && Boolean(branch?.id),
   });
 
   const addTerm = useMutation(
@@ -37,13 +47,14 @@ export function AnalyzeView() {
     <>
       <PageHeader
         title="Analyze"
-        description="Score your resume against best practices, and against a specific job description."
+        description="Score the selected resume against best practices, and against a specific job description."
+        actions={<ResumeSourceSelect />}
       />
 
       <h3 className="mb-2 text-[14.5px] font-semibold">Resume health</h3>
       <Card className="mb-6">
         <CardContent className="pt-4">
-          {health.isPending ? (
+          {workspace.isPending || health.isPending ? (
             <Skeleton className="h-32" />
           ) : health.error ? (
             <ErrorState onRetry={() => void health.refetch()} />
@@ -55,7 +66,8 @@ export function AnalyzeView() {
 
       <h3 className="mb-1 text-[14.5px] font-semibold">Job description match</h3>
       <p className="text-ink-2 mb-3 text-[13px]">
-        Paste a posting. Terms it emphasises are matched against your current resume.
+        Paste a posting. Terms it emphasises are matched against the resume
+        selected above.
       </p>
       <div className="grid gap-3.5 lg:grid-cols-2">
         <div>

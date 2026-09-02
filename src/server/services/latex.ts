@@ -5,6 +5,14 @@ import type { Database } from "@/server/db";
 import { compilations, type TexEngine } from "@/server/db/schema";
 import { logger } from "@/server/lib/logger";
 import { sha256 } from "@/lib/utils";
+import {
+  extractLatexErrors,
+  trimLatexLog,
+  type LatexError,
+} from "@/lib/latex-log";
+
+export type { LatexError };
+export { extractLatexErrors };
 
 /**
  * LaTeX compilation against the texlive.net CGI service.
@@ -12,19 +20,12 @@ import { sha256 } from "@/lib/utils";
  * Results are cached by `(user, content hash, engine)`, so recompiling an
  * unchanged document never leaves the database. That matters because the
  * upstream service is shared infrastructure we do not control and every miss
- * costs a user-visible second or two.
+ * costs a user-visible second or two. Failure logs keep the `!` error region
+ * rather than the font-loading head, because that is where TeX puts the
+ * author's mistake.
  */
 
 const COMPILE_TIMEOUT_MS = 45_000;
-
-/** LaTeX logs run to megabytes; only the head is ever useful for diagnosis. */
-const MAX_LOG_CHARS = 12_000;
-
-export interface LatexError {
-  /** Line in the submitted source, when the log reports one. */
-  line?: number;
-  message: string;
-}
 
 export interface CompileLatexOptions {
   userId: string;
@@ -45,50 +46,6 @@ export interface CompileLatexResult {
   engine: TexEngine;
   cached: boolean;
   durationMs: number;
-}
-
-/**
- * Pulls the human-meaningful failures out of a LaTeX log.
- *
- * TeX reports errors as a line starting with `!`, with the offending source
- * line following a few lines later as `l.<number>`. Everything between is
- * internal macro trace that only confuses the author.
- */
-export function extractLatexErrors(log: string): LatexError[] {
-  const lines = log.split(/\r?\n/);
-  const errors: LatexError[] = [];
-
-  for (let i = 0; i < lines.length && errors.length < 20; i++) {
-    const line = lines[i] ?? "";
-    if (!line.startsWith("!")) continue;
-
-    const message = line.replace(/^!\s*/, "").trim();
-    if (!message) continue;
-
-    let sourceLine: number | undefined;
-    let context = "";
-    for (let j = i + 1; j < Math.min(i + 8, lines.length); j++) {
-      const match = /^l\.(\d+)\s?(.*)$/.exec(lines[j] ?? "");
-      if (!match) continue;
-      sourceLine = Number(match[1]);
-      context = (match[2] ?? "").trim();
-      break;
-    }
-
-    errors.push({
-      line: sourceLine,
-      message: context ? `${message} — near: ${context}` : message,
-    });
-  }
-
-  if (errors.length === 0) {
-    const fatal = lines.find((l) =>
-      /Emergency stop|Fatal error|No pages of output|LaTeX Error/i.test(l),
-    );
-    if (fatal) errors.push({ message: fatal.trim() });
-  }
-
-  return errors;
 }
 
 /** Cached successes are keyed on the exact bytes, so identity is enough. */
@@ -262,7 +219,8 @@ export async function compileLatex({
       throw new Error("The LaTeX compiler failed. Try again shortly.");
     }
 
-    const log = body.slice(0, MAX_LOG_CHARS);
+    const errors = extractLatexErrors(body);
+    const log = trimLatexLog(body);
     await upsertCompilation(db, {
       userId,
       contentHash,
@@ -276,7 +234,7 @@ export async function compileLatex({
     return {
       status: "error",
       log,
-      errors: extractLatexErrors(log),
+      errors,
       contentHash,
       engine,
       cached: false,

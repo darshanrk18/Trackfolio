@@ -112,9 +112,16 @@ ${GROUNDING}
 ${STYLE}
 
 Return a list of individual, reviewable edits. Do not return a rewritten
-document: the user approves or rejects each change one at a time, so each edit
-must stand alone and quote the original text exactly as it appears in the
-source, character for character, so it can be located.
+document: the user approves or rejects each change one at a time, then those
+edits are spliced into the LaTeX source. Each edit must stand alone.
+
+"original" must be a contiguous substring of RESUME SOURCE, copied character
+for character — including \\item / \\resumeItem / \\textbf and escapes such as
+\\& and \\%. If the span cannot be found with a literal search, the edit cannot
+be applied.
+
+"revised" is a drop-in replacement of that same span. Preserve the surrounding
+LaTeX. Do not strip macros. Do not return a full document.
 
 Good edits re-emphasise, reorder, retitle, and re-word what is already there.
 Typical honest moves: surface a relevant project that is buried, use the

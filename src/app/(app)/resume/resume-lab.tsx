@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Copy, Download, GitBranch, Lock, Unlock } from "lucide-react";
@@ -15,6 +16,7 @@ import { Field, Input, NativeSelect } from "@/components/ui/field";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/feedback";
 import { PROFILE_GUIDANCE, PROFILE_LABELS } from "@/lib/pipeline";
 import { debounce, downloadBlob, formatBytes } from "@/lib/utils";
+import { formatCompileFailure } from "@/lib/latex-log";
 import type { RoleProfile, TexEngine } from "@/server/db/schema";
 
 const PROFILES = Object.keys(PROFILE_LABELS) as RoleProfile[];
@@ -22,6 +24,8 @@ const PROFILES = Object.keys(PROFILE_LABELS) as RoleProfile[];
 export function ResumeLab() {
   const trpc = useTRPC();
   const qc = useQueryClient();
+  const search = useSearchParams();
+  const urlBranchId = search.get("branch");
   const workspace = useQuery(trpc.documents.workspace.queryOptions({ kind: "resume" }));
   const profile = useQuery(trpc.profile.get.queryOptions());
 
@@ -45,9 +49,13 @@ export function ResumeLab() {
   const resolvedAutoCompile = autoCompile ?? profile.data?.autoCompile ?? false;
 
   const initial = workspace.data?.master ?? workspace.data?.branches[0];
-  const resolvedId = activeId ?? initial?.id ?? null;
-  const displayContent = activeId === null && initial ? initial.content : content;
+  const urlBranch = urlBranchId
+    ? workspace.data?.branches.find((b) => b.id === urlBranchId)
+    : undefined;
+  const resolvedId = activeId ?? urlBranch?.id ?? initial?.id ?? null;
   const branch = workspace.data?.branches.find((b) => b.id === resolvedId);
+  const displayContent =
+    activeId === null ? (branch?.content ?? initial?.content ?? "") : content;
   const locked = Boolean(branch?.isMaster && !masterUnlocked);
 
   const invalidate = () => {
@@ -75,10 +83,9 @@ export function ResumeLab() {
   React.useEffect(() => () => autosave.cancel(), [autosave]);
 
   const onChange = (next: string) => {
-    if (activeId === null && initial) setActiveId(initial.id);
+    if (activeId === null && resolvedId) setActiveId(resolvedId);
     setContent(next);
-    const id = activeId ?? initial?.id;
-    if (id && !locked) autosave(id, next);
+    if (resolvedId && !locked) autosave(resolvedId, next);
   };
 
   const createBranch = useMutation(
@@ -119,7 +126,7 @@ export function ResumeLab() {
         } else {
           setPdfOk("bad");
           setPdfStatus("Compile failed");
-          setCompileLog(result.log ?? result.errors?.map((e) => e.message).join("\n") ?? "");
+          setCompileLog(formatCompileFailure(result));
         }
       },
       onError: (err) => {
@@ -467,7 +474,7 @@ export function ResumeLab() {
             </div>
           )}
           {compileLog && (
-            <pre className="bg-sunken border-line max-h-[150px] overflow-auto border-t px-3 py-2 font-mono text-[10.5px] leading-relaxed whitespace-pre-wrap">
+            <pre className="bg-sunken border-line max-h-[220px] overflow-auto border-t px-3 py-2 font-mono text-[10.5px] leading-relaxed whitespace-pre-wrap">
               {compileLog}
             </pre>
           )}

@@ -51,7 +51,8 @@ Open [http://localhost:3000](http://localhost:3000). Sign in, then:
 4. Set `AUTH_URL` and `NEXT_PUBLIC_APP_URL` to the production domain.
 5. Add GitHub / Google OAuth callback `{AUTH_URL}/api/auth/callback/{provider}`.
 6. Run `pnpm db:push` (or generate and apply migrations) against production.
-7. Optional: Vercel Blob, Upstash Redis, OpenAI or Anthropic, Resend.
+7. Optional: Vercel Blob, Upstash Redis, OpenAI or Anthropic
+   (`ANTHROPIC_WORKSPACE_ID` if the Anthropic key is identity-linked), Resend.
 
 The daily cron at `/api/cron/reminders` (13:00 UTC) writes in-app follow-up notifications. It is a no-op without `CRON_SECRET`.
 

@@ -48,6 +48,12 @@ const serverSchema = z.object({
   // --- AI -----------------------------------------------------------------
   OPENAI_API_KEY: OptionalString,
   ANTHROPIC_API_KEY: OptionalString,
+  /** Required for multi-workspace / identity-linked Anthropic keys. */
+  ANTHROPIC_WORKSPACE_ID: OptionalString,
+  AI_PREFERRED_PROVIDER: z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+    z.enum(["anthropic", "openai"]).optional(),
+  ),
 
   // --- Storage ------------------------------------------------------------
   BLOB_READ_WRITE_TOKEN: OptionalString,

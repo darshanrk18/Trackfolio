@@ -5,16 +5,23 @@ import { env, features } from "@/env";
 import type { Database } from "@/server/db";
 import { aiRuns, aiTaskEnum } from "@/server/db/schema";
 import { logger } from "@/server/lib/logger";
+import {
+  anthropicWorkspaceHeaders,
+  resolveAiProvider,
+  type AiProviderName,
+} from "./provider-select";
 
 /**
  * Model selection, pricing, and the audit trail for every model call.
  *
  * Anthropic is preferred when configured because the grounding instructions in
- * `prompts.ts` are tuned against it; OpenAI is a drop-in fallback.
+ * `prompts.ts` are tuned against it; OpenAI is a drop-in fallback. Identity-
+ * linked Anthropic keys also need `ANTHROPIC_WORKSPACE_ID` — without it the
+ * first call fails and later calls skip straight to OpenAI for this process.
  */
 
 export type AiTask = (typeof aiTaskEnum.enumValues)[number];
-export type AiProviderName = "anthropic" | "openai";
+export type { AiProviderName };
 
 type ModelTier = "fast" | "strong";
 
@@ -63,30 +70,118 @@ export function isAiEnabled(): boolean {
 
 let anthropicProvider: ReturnType<typeof createAnthropic> | undefined;
 let openaiProvider: ReturnType<typeof createOpenAI> | undefined;
+/** Process-local: an identity-linked Anthropic key without a workspace will never recover. */
+let anthropicSkipped = false;
+
+export function skipAnthropic(reason: string): void {
+  if (anthropicSkipped) return;
+  anthropicSkipped = true;
+  logger.warn({ reason }, "skipping Anthropic for this process; using OpenAI fallback");
+}
+
+/** Test hook — do not call from product code. */
+export function resetAiProviderState(): void {
+  anthropicSkipped = false;
+  workspaceOverride = undefined;
+  anthropicProvider = undefined;
+  openaiProvider = undefined;
+}
+
+/** In-process workspace id discovered after an identity-linked key error. */
+let workspaceOverride: string | undefined;
+
+function resolvedWorkspaceId(): string | undefined {
+  return env.ANTHROPIC_WORKSPACE_ID ?? workspaceOverride;
+}
+
+export function applyAnthropicWorkspace(workspaceId: string): void {
+  if (!workspaceId.startsWith("wrkspc_")) return;
+  if (workspaceOverride === workspaceId) return;
+  workspaceOverride = workspaceId;
+  anthropicProvider = undefined;
+}
+
+/**
+ * Identity-linked keys need a workspace. Env wins; otherwise try List Workspaces
+ * and the response header Anthropic returns on org endpoints.
+ */
+export async function discoverAnthropicWorkspace(): Promise<string | undefined> {
+  const existing = resolvedWorkspaceId();
+  if (existing) return existing;
+  if (!env.ANTHROPIC_API_KEY) return undefined;
+
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/organizations/workspaces?limit=20", {
+      headers: {
+        "x-api-key": env.ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+      },
+    });
+    const fromHeader = res.headers.get("anthropic-workspace-id");
+    if (fromHeader?.startsWith("wrkspc_")) {
+      applyAnthropicWorkspace(fromHeader);
+      return fromHeader;
+    }
+    if (!res.ok) {
+      logger.warn({ status: res.status }, "anthropic workspace list failed");
+      return undefined;
+    }
+    const body = (await res.json()) as {
+      data?: { id?: string; archived_at?: string | null }[];
+    };
+    const id = body.data?.find((row) => row.id?.startsWith("wrkspc_") && !row.archived_at)?.id;
+    if (id) {
+      applyAnthropicWorkspace(id);
+      return id;
+    }
+  } catch (err) {
+    logger.warn({ err }, "could not list Anthropic workspaces");
+  }
+  return undefined;
+}
+
+function openaiModel(tier: ModelTier): ResolvedModel {
+  if (!env.OPENAI_API_KEY) {
+    throw new Error("AI is not configured");
+  }
+  openaiProvider ??= createOpenAI({ apiKey: env.OPENAI_API_KEY });
+  const modelId = MODELS.openai[tier];
+  return { model: openaiProvider(modelId), provider: "openai", modelId };
+}
+
+function anthropicModel(tier: ModelTier): ResolvedModel {
+  if (!env.ANTHROPIC_API_KEY) {
+    throw new Error("AI is not configured");
+  }
+  anthropicProvider ??= createAnthropic({
+    apiKey: env.ANTHROPIC_API_KEY,
+    headers: anthropicWorkspaceHeaders(resolvedWorkspaceId()),
+  });
+  const modelId = MODELS.anthropic[tier];
+  return {
+    model: anthropicProvider(modelId),
+    provider: "anthropic",
+    modelId,
+  };
+}
 
 /**
  * Resolves the model for a task. Providers are created lazily and memoised so
  * a missing key never blows up at import time — only when a task actually runs.
  */
-export function getModel(task: AiTask): ResolvedModel {
+export function getModel(task: AiTask, force?: AiProviderName): ResolvedModel {
   const tier = TASK_TIER[task];
+  const provider =
+    force ??
+    resolveAiProvider({
+      anthropic: Boolean(env.ANTHROPIC_API_KEY),
+      openai: Boolean(env.OPENAI_API_KEY),
+      preferred: env.AI_PREFERRED_PROVIDER,
+      anthropicSkipped,
+    });
 
-  if (env.ANTHROPIC_API_KEY) {
-    anthropicProvider ??= createAnthropic({ apiKey: env.ANTHROPIC_API_KEY });
-    const modelId = MODELS.anthropic[tier];
-    return {
-      model: anthropicProvider(modelId),
-      provider: "anthropic",
-      modelId,
-    };
-  }
-
-  if (env.OPENAI_API_KEY) {
-    openaiProvider ??= createOpenAI({ apiKey: env.OPENAI_API_KEY });
-    const modelId = MODELS.openai[tier];
-    return { model: openaiProvider(modelId), provider: "openai", modelId };
-  }
-
+  if (provider === "openai") return openaiModel(tier);
+  if (provider === "anthropic") return anthropicModel(tier);
   throw new Error("AI is not configured");
 }
 
