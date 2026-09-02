@@ -8,7 +8,12 @@ import { z } from "zod";
  * convention; nothing here without that prefix is ever sent to the browser.
  */
 
-const OptionalString = z.string().trim().min(1).optional();
+/** Empty strings in `.env.local` (`KEY=""`) must count as unset, not invalid. */
+const OptionalString = z
+  .string()
+  .trim()
+  .optional()
+  .transform((value) => (value ? value : undefined));
 
 const serverSchema = z.object({
   NODE_ENV: z
