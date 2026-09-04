@@ -22,7 +22,7 @@ jobs:
       SKIP_ENV_VALIDATION: "true"
       NEXT_PUBLIC_APP_URL: http://localhost:3000
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
       - name: Lint
         run: pnpm lint
@@ -51,7 +51,7 @@ jobs:
       NEXT_PUBLIC_APP_URL: http://localhost:3000
       CI: "true"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Skip without DATABASE_URL
         id: e2e
         run: |
