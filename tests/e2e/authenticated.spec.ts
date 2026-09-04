@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 const pages: { path: string; heading: string | RegExp }[] = [
   { path: "/onboarding", heading: /what should we call you/i },
-  { path: "/dashboard", heading: "Dashboard" },
+  { path: "/dashboard", heading: "Today" },
   { path: "/actions", heading: "Action Center" },
   { path: "/resume", heading: "Resume Lab" },
   { path: "/cover-letters", heading: "Cover Letters" },
@@ -22,7 +22,7 @@ const pages: { path: string; heading: string | RegExp }[] = [
 test("signed-in home skips the marketing pitch", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveURL(/\/dashboard/);
-  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Today" })).toBeVisible();
 });
 
 for (const item of pages) {
@@ -35,9 +35,9 @@ for (const item of pages) {
   });
 }
 
-test("sidebar can open Resume Lab from dashboard", async ({ page }) => {
+test("sidebar can open Documents from Today", async ({ page }) => {
   await page.goto("/dashboard");
-  await page.getByRole("link", { name: /resume lab/i }).first().click();
+  await page.getByRole("link", { name: /^documents$/i }).first().click();
   await expect(page).toHaveURL(/\/resume/);
   await expect(page.getByRole("heading", { name: "Resume Lab" })).toBeVisible();
 });
@@ -49,7 +49,6 @@ test("assistant is configured, not the empty state", async ({ page }) => {
   await page.getByRole("tab", { name: /tailor resume/i }).click();
   await expect(page.getByLabel(/^resume$/i)).toBeVisible();
   await expect(page.getByText(/grounded in the selected resume/i)).toBeVisible();
-  await expect(page.getByRole("button", { name: /propose tailoring/i })).toBeVisible();
   await expect(page.getByRole("button", { name: /apply to a new branch/i })).toHaveCount(0);
 });
 
@@ -58,12 +57,17 @@ test("analyze lets you pick which resume to score", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Analyze", level: 2 })).toBeVisible();
   await expect(page.getByLabel(/^resume$/i)).toBeVisible();
   await expect(page.getByRole("combobox", { name: /^resume$/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /^fit$/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /^assistant$/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /^conversion$/i })).toBeVisible();
 });
 
 test("account menu opens without crashing the shell", async ({ page }) => {
   await page.goto("/dashboard");
   await page.getByRole("button", { name: /account menu/i }).click();
   await expect(page.getByRole("menuitem", { name: /settings/i })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: /backup & data/i })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: /how it works/i })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: /sign out/i })).toBeVisible();
   await page.getByRole("menuitem", { name: /settings/i }).click();
   await expect(page).toHaveURL(/settings/);
@@ -71,3 +75,15 @@ test("account menu opens without crashing the shell", async ({ page }) => {
   await expect(page.getByText(/this view failed to load/i)).toHaveCount(0);
 });
 
+test("mobile four-mode bar is the primary nav", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/dashboard");
+  await expect(page.getByRole("heading", { name: "Today", level: 2 })).toBeVisible();
+  const bar = page.getByRole("navigation", { name: "Primary" });
+  await expect(bar.getByRole("link", { name: "Today" })).toBeVisible();
+  await expect(bar.getByRole("link", { name: "Documents" })).toBeVisible();
+  await expect(bar.getByRole("link", { name: "Pipeline" })).toBeVisible();
+  await expect(bar.getByRole("link", { name: "Insights" })).toBeVisible();
+  await bar.getByRole("link", { name: "Pipeline" }).click();
+  await expect(page).toHaveURL(/\/applications/);
+});
