@@ -105,10 +105,27 @@ export const documentsRouter = createTRPCRouter({
         where: eq(watchTerms.userId, ctx.user.id),
       });
 
+      const graphVersions = await ctx.db.query.documentVersions.findMany({
+        where: and(
+          eq(documentVersions.userId, ctx.user.id),
+          eq(documentVersions.kind, kind),
+        ),
+        columns: {
+          id: true,
+          branchId: true,
+          createdAt: true,
+          note: true,
+          revision: true,
+        },
+        orderBy: [desc(documentVersions.createdAt)],
+        limit: 160,
+      });
+
       return {
         branches: all.filter((b) => !b.isArchived),
         master: all.find((b) => b.isMaster) ?? null,
         watchlist: terms.map((t) => t.term),
+        versions: graphVersions,
       };
     }),
 

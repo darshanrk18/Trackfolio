@@ -4,11 +4,14 @@ import * as React from "react";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Copy, Download, GitBranch, Lock, Unlock } from "lucide-react";
+import { Copy, Download, GitBranch } from "lucide-react";
 import { useTRPC } from "@/trpc/react";
 import { LatexEditor } from "@/components/editor/latex-editor";
 import { PageHeader } from "@/components/app/page-header";
 import { ProfilePill } from "@/components/app/status";
+import { DOCUMENT_TABS, HubTabs } from "@/components/app/hub-tabs";
+import { BranchGraph } from "@/components/app/branch-graph";
+import { MasterLockRail } from "@/components/app/master-lock-rail";
 import { Button } from "@/components/ui/button";
 import { Badge, Chip } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -205,6 +208,7 @@ export function ResumeLab() {
 
   return (
     <>
+      <HubTabs items={DOCUMENT_TABS} />
       <PageHeader
         eyebrow="ResumeOps workspace"
         title="Resume Lab"
@@ -219,6 +223,26 @@ export function ResumeLab() {
         }
       />
 
+      <div className="mb-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
+        <BranchGraph
+          branches={workspace.data.branches}
+          versions={workspace.data.versions}
+          activeId={resolvedId}
+          onSelect={switchBranch}
+        />
+        <MasterLockRail
+          isMaster={Boolean(branch?.isMaster)}
+          locked={locked}
+          onToggle={() => {
+            if (!branch?.isMaster) return;
+            setMasterUnlocked((v) => !v);
+            toast.message(
+              masterUnlocked ? "Master locked again." : "Master unlocked for this session.",
+            );
+          }}
+        />
+      </div>
+
       <Card className="mb-3">
         <CardContent className="pt-4">
           <div className="mb-3 flex items-start justify-between gap-3">
@@ -227,23 +251,6 @@ export function ResumeLab() {
               <p className="text-ink-2 text-[12.5px]">
                 Create a branch before tailoring. Your master stays protected.
               </p>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  if (branch?.isMaster) {
-                    setMasterUnlocked((v) => !v);
-                    toast.message(
-                      masterUnlocked ? "Master locked again." : "Master unlocked for this session.",
-                    );
-                  }
-                }}
-              >
-                {locked ? <Lock className="size-3.5" /> : <Unlock className="size-3.5" />}
-                {locked ? "Master locked" : "Master unlocked"}
-              </Button>
             </div>
           </div>
 

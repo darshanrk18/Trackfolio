@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useTRPC } from "@/trpc/react";
 import { PageHeader } from "@/components/app/page-header";
+import { DOCUMENT_TABS, HubTabs } from "@/components/app/hub-tabs";
 import { Button } from "@/components/ui/button";
 import { Input, NativeSelect } from "@/components/ui/field";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/feedback";
@@ -53,6 +54,7 @@ export function HistoryView() {
 
   return (
     <>
+      <HubTabs items={DOCUMENT_TABS} />
       <PageHeader
         title="History"
         description="Every saved version, kept in full. Nothing saved here can silently disappear."
