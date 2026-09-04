@@ -27,7 +27,7 @@ export function WorkspacePicker() {
     return (
       <>
         <PageHeader
-          eyebrow="One company, everything together"
+          eyebrow="Open an application"
           title="Application Workspace"
         />
         <EmptyState
@@ -45,9 +45,9 @@ export function WorkspacePicker() {
   return (
     <>
       <PageHeader
-        eyebrow="One company, everything together"
+        eyebrow="Open an application"
         title="Application Workspace"
-        description="Open an application to keep the JD, submitted documents, contacts and timeline in one place."
+        description="Pick a company to open its workspace: JD archive, freeze stamp, interview prep, contacts and timeline."
       />
       <ul className="space-y-2">
         {list.data.map((app) => (

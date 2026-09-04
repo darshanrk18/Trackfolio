@@ -25,6 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/feedback";
 import { STATUS_LABELS, FUNNEL_STAGES, isActiveStatus } from "@/lib/pipeline";
 import { daysSince, downloadBlob, formatDate } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import type { ApplicationStatus } from "@/server/db/schema";
 
 const STATUSES = Object.keys(STATUS_LABELS) as ApplicationStatus[];
@@ -122,7 +123,7 @@ export function ApplicationsView() {
     <>
       <PageHeader
         title="Applications"
-        description="Every submission — which documents went out, and where things stand."
+        description="Every submission — freeze stamp, days silent, and the next interview, on the board or in the table."
       />
 
       <form
@@ -218,6 +219,7 @@ export function ApplicationsView() {
                     <th className="border-line border-b px-2 py-2">ROLE</th>
                     <th className="border-line border-b px-2 py-2">DATE</th>
                     <th className="border-line border-b px-2 py-2">STATUS</th>
+                    <th className="border-line border-b px-2 py-2">STATE</th>
                     <th className="border-line border-b px-2 py-2" />
                   </tr>
                 </thead>
@@ -259,6 +261,16 @@ export function ApplicationsView() {
                               </option>
                             ))}
                           </NativeSelect>
+                        </td>
+                        <td className="border-line border-b px-2 py-2">
+                          <div className="flex flex-wrap gap-1">
+                            <Badge tone={row.frozen ? "ok" : "bad"} size="sm" mono>
+                              {row.frozen ? "FROZEN" : "HOLE"}
+                            </Badge>
+                            <Badge tone={row.jdArchived ? "ok" : "warn"} size="sm" mono>
+                              {row.jdArchived ? "JD" : "NO JD"}
+                            </Badge>
+                          </div>
                         </td>
                         <td className="border-line border-b px-2 py-2 whitespace-nowrap">
                           <Button variant="ghost" size="sm" asChild>
@@ -305,20 +317,32 @@ export function ApplicationsView() {
   );
 }
 
+type BoardItem = {
+  id: string;
+  company: string;
+  role: string;
+  status: ApplicationStatus;
+  appliedOn: string | null;
+  updatedAt: Date;
+  interviewOn: Date | null;
+  frozen: boolean;
+  jdArchived: boolean;
+};
+
 function BoardColumn({
   status,
   items,
   onOpen,
 }: {
   status: ApplicationStatus;
-  items: Array<{ id: string; company: string; role: string }>;
+  items: BoardItem[];
   onOpen: (id: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
   return (
     <div
       ref={setNodeRef}
-      className="bg-sunken w-[220px] shrink-0 rounded-[8px] p-2"
+      className="bg-sunken w-[240px] shrink-0 rounded-[8px] p-2"
       style={{ outline: isOver ? "2px solid var(--primary)" : undefined }}
     >
       <div className="mb-2 flex items-center justify-between px-1">
@@ -338,12 +362,16 @@ function BoardCard({
   item,
   onOpen,
 }: {
-  item: { id: string; company: string; role: string };
+  item: BoardItem;
   onOpen: (id: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: item.id,
   });
+  const silent =
+    daysSince(item.updatedAt) ?? daysSince(item.appliedOn) ?? 0;
+  const heat = silent >= 21 ? "bad" : silent >= 14 ? "warn" : null;
+
   return (
     <button
       ref={setNodeRef}
@@ -353,12 +381,34 @@ function BoardCard({
       style={{
         transform: CSS.Translate.toString(transform),
         opacity: isDragging ? 0.6 : 1,
+        boxShadow: heat
+          ? `inset 3px 0 0 var(--${heat})`
+          : undefined,
       }}
       {...listeners}
       {...attributes}
     >
-      <p className="truncate text-[12.5px] font-semibold">{item.company}</p>
+      <div className="mb-1 flex items-start justify-between gap-1">
+        <p className="truncate text-[12.5px] font-semibold">{item.company}</p>
+        <StatusPill status={item.status} />
+      </div>
       <p className="text-ink-3 truncate text-[11px]">{item.role || "Role"}</p>
+      <p className="readout text-ink-3 mt-1.5 flex flex-wrap gap-x-2 text-[9.5px]">
+        <span className={heat === "bad" ? "text-bad" : heat === "warn" ? "text-warn" : undefined}>
+          {silent}d silent
+        </span>
+        <span className={item.frozen ? "text-ok" : "text-bad"}>
+          {item.frozen ? "frozen" : "not frozen"}
+        </span>
+        <span className={item.jdArchived ? "text-ok" : "text-warn"}>
+          {item.jdArchived ? "JD in" : "no JD"}
+        </span>
+        {item.interviewOn && (
+          <span className="text-primary">
+            int {formatDate(item.interviewOn, "short")}
+          </span>
+        )}
+      </p>
     </button>
   );
 }

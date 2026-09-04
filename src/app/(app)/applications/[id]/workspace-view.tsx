@@ -8,13 +8,14 @@ import JSZip from "jszip";
 import { useTRPC } from "@/trpc/react";
 import { PageHeader } from "@/components/app/page-header";
 import { Timeline } from "@/components/app/timeline";
+import { FreezeStamp } from "@/components/app/freeze-stamp";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Field, Input, NativeSelect, Textarea } from "@/components/ui/field";
 import { ErrorState, Skeleton } from "@/components/ui/feedback";
 import { FUNNEL_STAGES, PRIORITY_LABELS, STATUS_LABELS } from "@/lib/pipeline";
-import { downloadBlob, formatDateTime, safeFilename } from "@/lib/utils";
+import { downloadBlob, safeFilename } from "@/lib/utils";
 import type { ApplicationStatus, Priority } from "@/server/db/schema";
 
 const STATUSES = Object.keys(STATUS_LABELS) as ApplicationStatus[];
@@ -68,9 +69,28 @@ export function ApplicationWorkspace({ id }: { id: string }) {
       onError: (err) => toast.error(err.message),
     }),
   );
+  const createContact = useMutation(
+    trpc.contacts.create.mutationOptions({
+      onError: (err) => toast.error(err.message),
+    }),
+  );
+  const linkContact = useMutation(
+    trpc.applications.linkContact.mutationOptions({
+      onSuccess: () => {
+        setContactName("");
+        setContactRelation("");
+        invalidate();
+        void qc.invalidateQueries(trpc.contacts.pathFilter());
+        toast.success("Contact linked");
+      },
+      onError: (err) => toast.error(err.message),
+    }),
+  );
 
   const [eventLabel, setEventLabel] = React.useState("");
   const [jdDraft, setJdDraft] = React.useState<string | null>(null);
+  const [contactName, setContactName] = React.useState("");
+  const [contactRelation, setContactRelation] = React.useState("");
 
   const a = app.data;
 
@@ -131,6 +151,12 @@ export function ApplicationWorkspace({ id }: { id: string }) {
           <>
             <Button variant="secondary" size="sm" asChild>
               <Link href="/applications">All applications</Link>
+            </Button>
+            <Button variant="secondary" size="sm" asChild>
+              <Link href={`/interview?application=${a.id}`}>Interview prep</Link>
+            </Button>
+            <Button variant="secondary" size="sm" asChild>
+              <Link href="/contacts">All people</Link>
             </Button>
             <Button variant="primary" size="sm" onClick={() => void exportPackage()}>
               Export package
@@ -270,21 +296,25 @@ export function ApplicationWorkspace({ id }: { id: string }) {
         </div>
 
         <div className="space-y-3">
+          <FreezeStamp
+            frozen={Boolean(a.resumeSnapshot)}
+            at={a.submittedAt}
+            versionLabel={
+              (versions.data ?? []).find((v) => v.id === a.resumeVersionId)?.note ??
+              (a.resumeSnapshot ? "Frozen copy" : null)
+            }
+            className="mb-3"
+          />
           <Card>
             <CardHeader>
               <CardTitle>Documents</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="bg-sunken border-line mb-2 rounded-[7px] border p-2.5">
-                <p className="text-[12.5px] font-semibold">
-                  {a.resumeSnapshot ? "Frozen submission" : "No immutable snapshot yet"}
-                </p>
-                <p className="text-ink-3 font-mono text-[9.5px]">
-                  {a.submittedAt
-                    ? formatDateTime(a.submittedAt)
-                    : "Capture one before or immediately after applying."}
-                </p>
-              </div>
+              <p className="text-ink-2 mb-2 text-[12.5px]">
+                {a.resumeSnapshot
+                  ? "Frozen submission on file. Refresh only if you sent a new file."
+                  : "Pick versions, then freeze. Missing snapshot is a hole in the record."}
+              </p>
               <Field label="Resume version" className="mb-2">
                 <NativeSelect
                   value={a.resumeVersionId ?? ""}
@@ -385,11 +415,56 @@ export function ApplicationWorkspace({ id }: { id: string }) {
               <CardTitle>Related contacts</CardTitle>
             </CardHeader>
             <CardContent>
+              <form
+                className="mb-3 flex flex-col gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!contactName.trim()) return;
+                  createContact.mutate(
+                    {
+                      name: contactName.trim(),
+                      company: a.company,
+                      relation: contactRelation || undefined,
+                    },
+                    {
+                      onSuccess: (created) =>
+                        linkContact.mutate({
+                          applicationId: a.id,
+                          contactId: created.id,
+                          role: contactRelation || undefined,
+                        }),
+                    },
+                  );
+                }}
+              >
+                <Field label="New contact">
+                  <Input
+                    value={contactName}
+                    onChange={(e) => setContactName(e.target.value)}
+                    placeholder="Jordan Recruiter"
+                  />
+                </Field>
+                <Field label="Relation">
+                  <Input
+                    value={contactRelation}
+                    onChange={(e) => setContactRelation(e.target.value)}
+                    placeholder="Recruiter"
+                  />
+                </Field>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  type="submit"
+                  loading={createContact.isPending || linkContact.isPending}
+                >
+                  Add to this company
+                </Button>
+              </form>
               {a.contacts.length === 0 ? (
                 <p className="text-ink-3 text-[12.5px]">
                   No contacts linked yet.{" "}
                   <Link href="/contacts" className="text-primary underline-offset-2 hover:underline">
-                    Add one
+                    All people
                   </Link>
                 </p>
               ) : (
