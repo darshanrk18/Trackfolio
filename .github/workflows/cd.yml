@@ -1,0 +1,62 @@
+name: CD
+
+# Automatic production deploys come from Vercel Git (push to main, preview on PRs).
+# This workflow is the CI-gated / manual path. Set VERCEL_TOKEN in repo secrets
+# to use it. Do not turn this into a push-to-main deploy while Vercel Git is
+# still deploying production, or every merge ships twice.
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Vercel target
+        type: choice
+        options:
+          - preview
+          - production
+        default: production
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+concurrency:
+  group: cd-${{ github.event.inputs.environment || 'production' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && vars.CD_ON_CI == 'true') }}
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - name: Require Vercel token
+        if: ${{ env.VERCEL_TOKEN == '' }}
+        run: |
+          echo "Add GitHub secrets VERCEL_TOKEN, VERCEL_ORG_ID, and VERCEL_PROJECT_ID."
+          echo "Org/project ids are in .vercel/project.json on a linked machine."
+          exit 1
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Vercel CLI
+        run: npm install --global vercel
+      - name: Pull Vercel env
+        run: vercel pull --yes --environment=${{ github.event.inputs.environment || 'production' }} --token="$VERCEL_TOKEN"
+      - name: Build
+        run: vercel build ${{ (github.event.inputs.environment || 'production') == 'production' && '--prod' || '' }} --token="$VERCEL_TOKEN"
+      - name: Deploy prebuilt
+        run: vercel deploy --prebuilt --yes ${{ (github.event.inputs.environment || 'production') == 'production' && '--prod' || '' }} --token="$VERCEL_TOKEN"
