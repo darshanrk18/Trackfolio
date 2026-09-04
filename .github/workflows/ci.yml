@@ -36,29 +36,50 @@ jobs:
   e2e:
     name: E2E (public)
     needs: verify
-    # Authenticated / journey Playwright is not run here — seed-session writes
-    # users into Postgres, and local/prod currently share the same Neon.
-    if: ${{ secrets.DATABASE_URL != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      AUTH_SECRET: ${{ secrets.AUTH_SECRET || 'ci-only-auth-secret-32-chars-min' }}
-      AUTH_GITHUB_ID: ${{ secrets.AUTH_GITHUB_ID || 'ci-github-client' }}
-      AUTH_GITHUB_SECRET: ${{ secrets.AUTH_GITHUB_SECRET || 'ci-github-secret' }}
-      AUTH_GOOGLE_ID: ${{ secrets.AUTH_GOOGLE_ID || 'ci-google.apps.googleusercontent.com' }}
-      AUTH_GOOGLE_SECRET: ${{ secrets.AUTH_GOOGLE_SECRET || 'ci-google-secret' }}
-      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY || 're_ci_dummy_key' }}
+      AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+      AUTH_GITHUB_ID: ${{ secrets.AUTH_GITHUB_ID }}
+      AUTH_GITHUB_SECRET: ${{ secrets.AUTH_GITHUB_SECRET }}
+      AUTH_GOOGLE_ID: ${{ secrets.AUTH_GOOGLE_ID }}
+      AUTH_GOOGLE_SECRET: ${{ secrets.AUTH_GOOGLE_SECRET }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
       AUTH_TRUST_HOST: "true"
       AUTH_URL: http://localhost:3000
       NEXT_PUBLIC_APP_URL: http://localhost:3000
       CI: "true"
     steps:
       - uses: actions/checkout@v4
+      - name: Skip without DATABASE_URL
+        id: e2e
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "No DATABASE_URL Actions secret; skipping public Playwright."
+            echo "Authenticated e2e is never run in CI (it writes users into Postgres)."
+            exit 0
+          fi
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
       - uses: ./.github/actions/setup
+        if: steps.e2e.outputs.enabled == 'true'
+      - name: Provider fallbacks for /sign-in buttons
+        if: steps.e2e.outputs.enabled == 'true'
+        run: |
+          {
+            echo "AUTH_SECRET=${AUTH_SECRET:-ci-only-auth-secret-32-chars-min}"
+            echo "AUTH_GITHUB_ID=${AUTH_GITHUB_ID:-ci-github-client}"
+            echo "AUTH_GITHUB_SECRET=${AUTH_GITHUB_SECRET:-ci-github-secret}"
+            echo "AUTH_GOOGLE_ID=${AUTH_GOOGLE_ID:-ci-google.apps.googleusercontent.com}"
+            echo "AUTH_GOOGLE_SECRET=${AUTH_GOOGLE_SECRET:-ci-google-secret}"
+            echo "RESEND_API_KEY=${RESEND_API_KEY:-re_ci_dummy_key}"
+          } >> "$GITHUB_ENV"
       - name: Install Playwright Chromium
+        if: steps.e2e.outputs.enabled == 'true'
         run: pnpm exec playwright install --with-deps chromium
       - name: Public e2e
+        if: steps.e2e.outputs.enabled == 'true'
         run: pnpm test:e2e --project=public
       - uses: actions/upload-artifact@v4
         if: ${{ failure() }}
