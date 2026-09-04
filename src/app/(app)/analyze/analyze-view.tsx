@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { useTRPC } from "@/trpc/react";
 import { PageHeader } from "@/components/app/page-header";
 import { HealthPanel } from "@/components/app/health-panel";
+import { FitHeatmap } from "@/components/app/fit-heatmap";
+import { HubTabs, INSIGHT_TABS } from "@/components/app/hub-tabs";
 import { ResumeSourceSelect, useResumeSource } from "@/components/app/resume-source-select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,6 +47,7 @@ export function AnalyzeView() {
 
   return (
     <>
+      <HubTabs items={INSIGHT_TABS} />
       <PageHeader
         title="Analyze"
         description="Score the selected resume against best practices, and against a specific job description."
@@ -123,6 +126,16 @@ export function AnalyzeView() {
                       Must-have coverage: {match.data.mustCoverage}%.
                     </span>
                   </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="font-mono text-[11px] tracking-wide">
+                    PRESENT VS MISSING
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <FitHeatmap match={match.data} />
                 </CardContent>
               </Card>
               {(["must", "preferred", "other"] as const).map((tier) => {

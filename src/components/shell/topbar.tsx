@@ -2,11 +2,19 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
-import { LogOut, Menu, Monitor, Moon, Search, Settings, Sun } from "lucide-react";
+import {
+  Archive,
+  BookOpen,
+  LogOut,
+  Monitor,
+  Moon,
+  Search,
+  Settings,
+  Sun,
+  TriangleAlert,
+} from "lucide-react";
 import { signOut } from "next-auth/react";
-import { ALL_NAV_ITEMS, NAV_GROUPS } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -20,35 +28,29 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogHiddenTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Logo } from "./logo";
 
 export function Topbar({
   user,
+  urgentCount = 0,
 }: {
   user: { name?: string | null; email: string; image?: string | null };
+  urgentCount?: number;
 }) {
-  const pathname = usePathname();
-  const current = ALL_NAV_ITEMS.find(
-    (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
-  );
-
   return (
     <header className="bg-bg/85 border-line sticky top-0 z-40 flex h-13 shrink-0 items-center gap-3 border-b px-4 backdrop-blur-md lg:px-6">
-      <MobileNav />
-
       <div className="min-w-0 flex-1">
-        <h1 className="truncate text-[14.5px] font-semibold">
-          {current?.label ?? "Trackfolio"}
-        </h1>
+        <CommandTrigger />
       </div>
 
-      <CommandTrigger />
+      {urgentCount > 0 && (
+        <Link
+          href="/dashboard"
+          className="bg-bad-soft text-bad hover:border-bad-border hidden items-center gap-1.5 rounded-full border border-transparent px-2.5 py-1 font-mono text-[11px] sm:inline-flex"
+        >
+          <TriangleAlert className="size-3.5" aria-hidden />
+          {urgentCount} urgent
+        </Link>
+      )}
 
       <ThemeMenu />
 
@@ -79,6 +81,18 @@ export function Topbar({
               Settings
             </Link>
           </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href="/data">
+              <Archive />
+              Backup & Data
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href="/guide">
+              <BookOpen />
+              How it works
+            </Link>
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             destructive
@@ -105,14 +119,16 @@ function CommandTrigger() {
     <button
       type="button"
       onClick={dispatch}
+      aria-label="Search"
       className={cn(
-        "bg-surface border-line text-ink-3 hover:border-line-2 hover:text-ink-2 flex items-center gap-2 rounded-[var(--radius-sm)] border px-2.5 py-1.5 text-[12.5px] transition-colors",
+        "bg-surface border-line text-ink-3 hover:border-line-2 hover:text-ink-2 flex w-full max-w-sm items-center gap-2 rounded-[var(--radius-sm)] border px-2.5 py-1.5 text-[12.5px] transition-colors",
         "focus-visible:ring-3 focus-visible:ring-[var(--primary-soft)] outline-none",
       )}
     >
       <Search className="size-3.5" aria-hidden />
-      <span className="hidden sm:inline">Search</span>
-      <kbd className="border-line-2 hidden rounded border px-1 font-mono text-[10px] sm:inline">
+      <span className="hidden sm:inline">Jump to a mode, company, or command</span>
+      <span className="sm:hidden">Search</span>
+      <kbd className="border-line-2 ml-auto hidden rounded border px-1 font-mono text-[10px] sm:inline">
         ⌘K
       </kbd>
     </button>
@@ -148,60 +164,5 @@ function ThemeMenu() {
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>
-  );
-}
-
-function MobileNav() {
-  const pathname = usePathname();
-  const [open, setOpen] = React.useState(false);
-  const [seenPath, setSeenPath] = React.useState(pathname);
-  if (pathname !== seenPath) {
-    setSeenPath(pathname);
-    setOpen(false);
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open navigation">
-          <Menu />
-        </Button>
-      </DialogTrigger>
-      <DialogContent size="sm" className="top-0 left-0 h-dvh max-h-dvh translate-x-0 translate-y-0 rounded-none">
-        <DialogHiddenTitle>Navigation</DialogHiddenTitle>
-        <div className="px-1 pb-4">
-          <Logo />
-        </div>
-        <div className="overflow-y-auto">
-          {NAV_GROUPS.map((group) => (
-            <div key={group.label} className="mb-3">
-              <p className="text-eyebrow mb-1 px-1">{group.label}</p>
-              <ul className="space-y-px">
-                {group.items.map((item) => {
-                  const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-                  return (
-                    <li key={item.href}>
-                      <Link
-                        href={item.href}
-                        aria-current={active ? "page" : undefined}
-                        className={cn(
-                          "flex items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 py-2 text-[14px]",
-                          active
-                            ? "bg-primary-soft text-primary-ink font-semibold"
-                            : "text-ink-2 hover:bg-surface-2",
-                        )}
-                      >
-                        <item.icon className="size-4 shrink-0 opacity-75" aria-hidden />
-                        {item.label}
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ))}
-        </div>
-      </DialogContent>
-    </Dialog>
   );
 }

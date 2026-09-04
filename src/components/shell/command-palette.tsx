@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "@/trpc/react";
-import { ALL_NAV_ITEMS } from "@/lib/navigation";
+import { ALL_NAV_ITEMS, HELP_ITEM, MODE_SHORTCUTS } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
 /**
@@ -34,15 +34,57 @@ export function CommandPalette() {
   const trpc = useTRPC();
 
   React.useEffect(() => {
+    let chord: ReturnType<typeof setTimeout> | null = null;
+    let awaiting = false;
+
+    const typing = (target: EventTarget | null) => {
+      if (!(target instanceof HTMLElement)) return false;
+      const tag = target.tagName;
+      return (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        target.isContentEditable
+      );
+    };
+
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "k" && (event.metaKey || event.ctrlKey)) {
         event.preventDefault();
         setOpen((prev) => !prev);
+        return;
+      }
+
+      if (typing(event.target) || event.metaKey || event.ctrlKey || event.altKey) {
+        awaiting = false;
+        return;
+      }
+
+      const key = event.key.toLowerCase();
+      if (!awaiting && key === "g") {
+        awaiting = true;
+        if (chord) clearTimeout(chord);
+        chord = setTimeout(() => {
+          awaiting = false;
+        }, 800);
+        return;
+      }
+
+      if (awaiting) {
+        const href = MODE_SHORTCUTS[key];
+        awaiting = false;
+        if (href) {
+          event.preventDefault();
+          router.push(href);
+        }
       }
     };
     document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, []);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      if (chord) clearTimeout(chord);
+    };
+  }, [router]);
 
   // Only query once the palette is open and the user has typed enough to be
   // meaningful, so opening the palette costs nothing.
@@ -131,7 +173,7 @@ export function CommandPalette() {
         )}
 
         <Group heading="Go to">
-          {ALL_NAV_ITEMS.map((item) => (
+          {[...ALL_NAV_ITEMS, HELP_ITEM].map((item) => (
             <Item
               key={item.href}
               value={`go ${item.label} ${item.description}`}

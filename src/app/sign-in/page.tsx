@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { GitBranch, Lock, Shield } from "lucide-react";
 import { currentUser } from "@/server/auth";
 import { features } from "@/env";
 import { Logo } from "@/components/shell/logo";
+import { ConsoleMock } from "@/components/app/console-mock";
 import { SignInForm } from "./sign-in-form";
 
 export const metadata: Metadata = {
@@ -97,46 +97,17 @@ export default async function SignInPage({
       </div>
 
       {/* Pitch side */}
-      <div className="bg-surface border-line hidden flex-col justify-center border-l px-12 lg:flex">
-        <div className="max-w-md">
+      <div className="console-grid bg-surface border-line hidden flex-col justify-center border-l px-10 py-12 lg:flex">
+        <div className="mx-auto w-full max-w-lg">
           <p className="text-eyebrow mb-3">Why Trackfolio</p>
           <h2 className="font-display text-[22px] leading-snug font-bold tracking-[-0.02em]">
             The resume you sent should never disappear.
           </h2>
-
-          <ul className="mt-7 space-y-5">
-            {[
-              {
-                icon: GitBranch,
-                title: "Branch, don't overwrite",
-                body: "Tailor freely for each company while your master resume stays protected and intact.",
-              },
-              {
-                icon: Lock,
-                title: "Frozen submissions",
-                body: "Every application keeps a permanent copy of the exact documents and job posting involved.",
-              },
-              {
-                icon: Shield,
-                title: "AI that stays honest",
-                body: "Suggestions are grounded in your real experience. Gaps get reported, never invented.",
-              },
-            ].map((item) => (
-              <li key={item.title} className="flex gap-3.5">
-                <span className="bg-primary-soft text-primary-ink flex size-8 shrink-0 items-center justify-center rounded-[var(--radius-md)]">
-                  <item.icon className="size-4" aria-hidden />
-                </span>
-                <span>
-                  <span className="block text-[13.5px] font-semibold">
-                    {item.title}
-                  </span>
-                  <span className="text-ink-2 mt-0.5 block text-[13px] leading-relaxed">
-                    {item.body}
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ul>
+          <p className="text-ink-2 mt-2 mb-6 text-[13.5px] leading-relaxed">
+            Don&apos;t overwrite master. Freeze what you sent. Prepare from that.
+            Don&apos;t invent skills.
+          </p>
+          <ConsoleMock />
         </div>
       </div>
     </div>

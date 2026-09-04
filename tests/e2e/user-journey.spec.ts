@@ -38,7 +38,7 @@ test.describe("end-user UI journey", () => {
     await page.getByPlaceholder(/documentclass/i).fill(RESUME);
     await page.getByRole("button", { name: /enter trackfolio/i }).click();
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 20_000 });
-    await expect(page.getByRole("heading", { name: "Dashboard", level: 2 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Today", level: 2 })).toBeVisible();
   });
 
   test("command palette and theme toggle", async ({ page }) => {
@@ -58,6 +58,8 @@ test.describe("end-user UI journey", () => {
   test("Resume Lab: unlock, edit, version, branch, watchlist, compile", async ({ page }) => {
     await page.goto("/resume");
     await expect(page.getByRole("heading", { name: "Resume Lab", level: 2 })).toBeVisible();
+    await expect(page.getByRole("link", { name: /^lab$/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /cover letters/i })).toBeVisible();
 
     const lock = page.getByRole("button", { name: /master locked/i });
     if (await lock.isVisible()) await lock.click();

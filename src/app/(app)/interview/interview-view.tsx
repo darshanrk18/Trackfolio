@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -19,7 +20,7 @@ export function InterviewView() {
   const trpc = useTRPC();
   const qc = useQueryClient();
   const search = useSearchParams();
-  const preset = search.get("id");
+  const preset = search.get("application") ?? search.get("id");
   const list = useQuery(trpc.applications.list.queryOptions({}));
   const [pickedId, setPickedId] = React.useState<string | null>(null);
   const id = pickedId ?? preset ?? list.data?.[0]?.id ?? "";
@@ -91,7 +92,15 @@ export function InterviewView() {
     return (
       <>
         <PageHeader title="Interview Prep" />
-        <EmptyState title="No application available for prep." />
+        <EmptyState
+          title="No application available for prep."
+          description="Interview prep starts from a frozen snapshot on a company workspace — not from today's master resume."
+          action={
+            <Button variant="primary" size="sm" asChild>
+              <Link href="/applications">Open pipeline</Link>
+            </Button>
+          }
+        />
       </>
     );
   }
@@ -164,8 +173,21 @@ export function InterviewView() {
                   </Badge>
                 </div>
                 <div className="bg-warn-soft mt-3 rounded-[6px] border-l-[3px] border-[var(--warn)] px-3 py-2 text-[12px]">
-                  Prepare against the frozen submission. If your current resume has
-                  changed, interviewers may still ask about the older version.
+                  Prepare against the frozen submission. Master is the wrong
+                  source — if the resume changed after you applied, interviewers
+                  may still ask about the older version.
+                  {!a.resumeSnapshot && (
+                    <>
+                      {" "}
+                      <Link
+                        href={`/applications/${a.id}`}
+                        className="text-primary underline-offset-2 hover:underline"
+                      >
+                        Freeze a snapshot on the workspace
+                      </Link>{" "}
+                      before treating this as interview ground truth.
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>

@@ -4,13 +4,16 @@ import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "@/trpc/react";
 import { PageHeader } from "@/components/app/page-header";
+import { DOCUMENT_TABS, HubTabs } from "@/components/app/hub-tabs";
 import { DiffSummary, DiffView } from "@/components/app/diff-view";
+import { ResumeSourceSelect, useResumeSource } from "@/components/app/resume-source-select";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/field";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/feedback";
 
 export function CompareView() {
   const trpc = useTRPC();
+  const { branch } = useResumeSource();
   const versions = useQuery(trpc.documents.listVersions.queryOptions({ limit: 200 }));
   const [left, setLeft] = React.useState("");
   const [right, setRight] = React.useState("");
@@ -18,8 +21,10 @@ export function CompareView() {
   const [run, setRun] = React.useState(false);
 
   const versionList = versions.data ?? [];
-  const leftId = left || versionList[0]?.id || "";
-  const rightId = right || versionList[1]?.id || versionList[0]?.id || "";
+  const onBranch = versionList.filter((v) => v.branchId === branch?.id);
+  const defaults = onBranch.length >= 2 ? onBranch : versionList;
+  const leftId = left || defaults[0]?.id || "";
+  const rightId = right || defaults[1]?.id || defaults[0]?.id || "";
 
   const diff = useQuery({
     ...trpc.analysis.diff.queryOptions({
@@ -32,9 +37,11 @@ export function CompareView() {
 
   return (
     <>
+      <HubTabs items={DOCUMENT_TABS} />
       <PageHeader
         title="Compare"
-        description="Check any draft against a saved version before sending it anywhere."
+        description="Check any draft against a saved version before sending it anywhere. Defaults to the latest two versions of the selected resume branch."
+        actions={<ResumeSourceSelect />}
       />
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <NativeSelect value={leftId} onChange={(e) => setLeft(e.target.value)} className="max-w-[290px]">

@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useTRPC } from "@/trpc/react";
 import { PageHeader } from "@/components/app/page-header";
+import { DOCUMENT_TABS, HubTabs } from "@/components/app/hub-tabs";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/field";
 import { ErrorState, Skeleton } from "@/components/ui/feedback";
@@ -60,6 +61,7 @@ export function CoverLettersView() {
 
   return (
     <>
+      <HubTabs items={DOCUMENT_TABS} />
       <PageHeader
         title="Cover Letters"
         description="Same versioning habit as the resume — pull a specific one per application."

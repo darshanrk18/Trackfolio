@@ -3,6 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "@/trpc/react";
 import { PageHeader } from "@/components/app/page-header";
+import { HubTabs, INSIGHT_TABS } from "@/components/app/hub-tabs";
+import { Funnel } from "@/components/app/funnel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState, ErrorState, Skeleton, StatCard } from "@/components/ui/feedback";
 import type { ConversionRow } from "@/lib/insights/analytics";
@@ -58,6 +60,7 @@ export function AnalyticsView() {
 
   return (
     <>
+      <HubTabs items={INSIGHT_TABS} />
       <PageHeader
         eyebrow="Learn what actually converts"
         title="Search Analytics"
@@ -69,6 +72,21 @@ export function AnalyticsView() {
         <StatCard label="Interview rate" value={`${summary.interviewRate}%`} tone="primary" />
         <StatCard label="Offers" value={summary.offers} tone="ok" />
       </div>
+      <Card className="mb-3">
+        <CardHeader>
+          <CardTitle>Funnel conversion</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Funnel
+            smallSample={summary.applications < 3}
+            stages={[
+              { label: "Applied", count: summary.applications, color: "var(--ink-3)" },
+              { label: "Interview", count: summary.interviews, color: "var(--primary)" },
+              { label: "Offer", count: summary.offers, color: "var(--ok)" },
+            ]}
+          />
+        </CardContent>
+      </Card>
       <div className="grid gap-3 lg:grid-cols-2">
         <Card>
           <CardHeader>

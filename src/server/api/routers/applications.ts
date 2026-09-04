@@ -249,12 +249,21 @@ export const applicationsRouter = createTRPCRouter({
 
       // The board and table views never render the frozen documents, and those
       // columns dominate the row size, so they are excluded from list payloads.
+      // Boolean extras keep freeze / JD state on the card without the text.
       return ctx.db.query.applications.findMany({
         where: and(...conditions),
         columns: {
           resumeSnapshot: false,
           coverLetterSnapshot: false,
           jobDescription: false,
+        },
+        extras: {
+          frozen: sql<boolean>`(${applications.resumeSnapshot} is not null and ${applications.resumeSnapshot} <> '')`.as(
+            "frozen",
+          ),
+          jdArchived: sql<boolean>`(${applications.jobDescription} is not null and ${applications.jobDescription} <> '')`.as(
+            "jd_archived",
+          ),
         },
         orderBy: [...LIST_ORDER[input?.sort ?? "updated"]],
         limit: input?.limit ?? 200,

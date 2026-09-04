@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Shield, Sparkles } from "lucide-react";
 import { useTRPC } from "@/trpc/react";
 import { PageHeader } from "@/components/app/page-header";
+import { HubTabs, INSIGHT_TABS } from "@/components/app/hub-tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, Input, NativeSelect, Textarea } from "@/components/ui/field";
@@ -45,6 +46,7 @@ export function AssistantView() {
   if (!enabled.data?.enabled) {
     return (
       <>
+        <HubTabs items={INSIGHT_TABS} />
         <PageHeader title="AI Assistant" />
         <EmptyState
           icon={<Sparkles />}
@@ -57,6 +59,7 @@ export function AssistantView() {
 
   return (
     <>
+      <HubTabs items={INSIGHT_TABS} />
       <PageHeader
         eyebrow="Grounded in your source document"
         title="AI Assistant"

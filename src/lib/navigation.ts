@@ -35,141 +35,157 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-export const NAV_GROUPS: readonly NavGroup[] = [
+/**
+ * Four work modes in the primary sidebar / mobile bar.
+ * Secondary destinations stay on ALL_NAV_ITEMS so bookmarks and ⌘K still work.
+ */
+export const MODE_NAV: readonly NavItem[] = [
   {
-    label: "Overview",
-    items: [
-      {
-        href: "/dashboard",
-        label: "Dashboard",
-        icon: LayoutDashboard,
-        description: "Where your search stands right now",
-        shortcut: "G D",
-      },
-      {
-        href: "/actions",
-        label: "Action Center",
-        icon: Zap,
-        badgeKey: "actions",
-        description: "The highest-value things to do next",
-        shortcut: "G A",
-      },
-    ],
+    href: "/dashboard",
+    label: "Today",
+    icon: LayoutDashboard,
+    badgeKey: "actions",
+    description: "Search pulse and the next actions that matter",
+    shortcut: "G D",
   },
   {
+    href: "/resume",
     label: "Documents",
-    items: [
-      {
-        href: "/resume",
-        label: "Resume Lab",
-        icon: FileText,
-        badgeKey: "versions",
-        description: "Branch, tailor and compile your resume",
-        shortcut: "G R",
-      },
-      {
-        href: "/cover-letters",
-        label: "Cover Letters",
-        icon: PenLine,
-        badgeKey: "coverLetters",
-        description: "Draft and version cover letters",
-      },
-      {
-        href: "/history",
-        label: "History",
-        icon: History,
-        description: "Every saved version, kept in full",
-      },
-      {
-        href: "/compare",
-        label: "Compare",
-        icon: GitCompareArrows,
-        description: "Diff any two versions before you send",
-      },
-    ],
+    icon: FileText,
+    badgeKey: "versions",
+    description: "Resume lab, cover letters, history and compare",
+    shortcut: "G R",
   },
   {
-    label: "Analysis",
-    items: [
-      {
-        href: "/analyze",
-        label: "Analyze",
-        icon: Target,
-        description: "Resume health and job-description fit",
-        shortcut: "G N",
-      },
-      {
-        href: "/assistant",
-        label: "AI Assistant",
-        icon: Sparkles,
-        description: "Rewrite bullets and find honest gaps",
-      },
-    ],
-  },
-  {
+    href: "/applications",
     label: "Pipeline",
-    items: [
-      {
-        href: "/applications",
-        label: "Applications",
-        icon: Building2,
-        badgeKey: "applications",
-        description: "Every submission and where it stands",
-        shortcut: "G P",
-      },
-      {
-        href: "/workspace",
-        label: "Workspace",
-        icon: Briefcase,
-        description: "One company, everything together",
-      },
-      {
-        href: "/interview",
-        label: "Interview Prep",
-        icon: MessagesSquare,
-        description: "Prepare from what you actually sent",
-      },
-      {
-        href: "/analytics",
-        label: "Analytics",
-        icon: BarChart3,
-        description: "Learn what actually converts",
-      },
-      {
-        href: "/contacts",
-        label: "Contacts",
-        icon: Users,
-        badgeKey: "contacts",
-        description: "Recruiters, referrals and networking",
-      },
-    ],
+    icon: Building2,
+    badgeKey: "applications",
+    description: "Board, workspaces, interviews and people",
+    shortcut: "G P",
   },
   {
-    label: "System",
-    items: [
-      {
-        href: "/data",
-        label: "Backup & Data",
-        icon: Archive,
-        description: "Export, restore and portability",
-      },
-      {
-        href: "/settings",
-        label: "Settings",
-        icon: Settings,
-        description: "Profile, theme and preferences",
-      },
-    ],
+    href: "/analyze",
+    label: "Insights",
+    icon: Target,
+    description: "Fit, grounded assistant and conversion",
+    shortcut: "G N",
   },
 ] as const;
 
-export const ALL_NAV_ITEMS: readonly NavItem[] = NAV_GROUPS.flatMap((g) => g.items);
+/** Routes that belong to a mode even when they are not the mode's primary href. */
+export const MODE_ALIASES: Readonly<Record<string, readonly string[]>> = {
+  "/dashboard": ["/dashboard", "/actions"],
+  "/resume": ["/resume", "/cover-letters", "/history", "/compare"],
+  "/applications": ["/applications", "/workspace", "/interview", "/contacts"],
+  "/analyze": ["/analyze", "/assistant", "/analytics"],
+};
+
+export function isNavActive(pathname: string, href: string): boolean {
+  const targets = MODE_ALIASES[href] ?? [href];
+  return targets.some((target) => pathname === target || pathname.startsWith(`${target}/`));
+}
+
+export const SECONDARY_NAV: readonly NavItem[] = [
+  {
+    href: "/actions",
+    label: "Action Center",
+    icon: Zap,
+    badgeKey: "actions",
+    description: "The full ranked queue of follow-ups and gaps",
+    shortcut: "G A",
+  },
+  {
+    href: "/cover-letters",
+    label: "Cover Letters",
+    icon: PenLine,
+    badgeKey: "coverLetters",
+    description: "Draft and version cover letters",
+  },
+  {
+    href: "/history",
+    label: "History",
+    icon: History,
+    description: "Every saved version, kept in full",
+  },
+  {
+    href: "/compare",
+    label: "Compare",
+    icon: GitCompareArrows,
+    description: "Diff any two versions before you send",
+  },
+  {
+    href: "/assistant",
+    label: "AI Assistant",
+    icon: Sparkles,
+    description: "Rewrite bullets and find honest gaps",
+  },
+  {
+    href: "/workspace",
+    label: "Workspace",
+    icon: Briefcase,
+    description: "Open an application workspace",
+  },
+  {
+    href: "/interview",
+    label: "Interview Prep",
+    icon: MessagesSquare,
+    description: "Prepare from what you actually sent",
+  },
+  {
+    href: "/analytics",
+    label: "Analytics",
+    icon: BarChart3,
+    description: "Learn what actually converts",
+  },
+  {
+    href: "/contacts",
+    label: "Contacts",
+    icon: Users,
+    badgeKey: "contacts",
+    description: "Recruiters, referrals and networking",
+  },
+] as const;
+
+export const ACCOUNT_NAV: readonly NavItem[] = [
+  {
+    href: "/settings",
+    label: "Settings",
+    icon: Settings,
+    description: "Profile, theme and preferences",
+  },
+  {
+    href: "/data",
+    label: "Backup & Data",
+    icon: Archive,
+    description: "Export, restore and portability",
+  },
+] as const;
+
+/** Kept for older imports; the sidebar now uses MODE_NAV. */
+export const NAV_GROUPS: readonly NavGroup[] = [
+  { label: "Modes", items: [...MODE_NAV] },
+];
+
+export const ALL_NAV_ITEMS: readonly NavItem[] = [
+  ...MODE_NAV,
+  ...SECONDARY_NAV,
+  ...ACCOUNT_NAV,
+];
 
 export const HELP_ITEM: NavItem = {
   href: "/guide",
   label: "How Trackfolio works",
   icon: BookOpen,
   description: "A two-minute tour of the workflow",
+};
+
+export const MODE_SHORTCUTS: Readonly<Record<string, string>> = {
+  d: "/dashboard",
+  r: "/resume",
+  p: "/applications",
+  n: "/analyze",
+  a: "/actions",
 };
 
 export { Braces };
