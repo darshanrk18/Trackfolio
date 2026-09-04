@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Logo } from "@/components/shell/logo";
 import { Button } from "@/components/ui/button";
+import { ConsoleMock } from "@/components/app/console-mock";
 
 export const metadata: Metadata = {
   title: "How Trackfolio works",
@@ -40,14 +41,14 @@ export default function GuidePage() {
   return (
     <div className="min-h-dvh">
       <header className="border-line border-b">
-        <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-5">
+        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-5">
           <Logo href="/" />
           <Button variant="primary" size="sm" asChild>
             <Link href="/sign-in">Get started</Link>
           </Button>
         </div>
       </header>
-      <main id="main" className="mx-auto max-w-3xl px-5 py-14">
+      <main id="main" className="console-grid mx-auto max-w-5xl px-5 py-14">
         <p className="text-eyebrow mb-2">Two-minute tour</p>
         <h1 className="font-display text-[32px] font-bold tracking-[-0.03em]">
           How Trackfolio works
@@ -57,6 +58,7 @@ export default function GuidePage() {
           branch per company, and an immutable commit for every document a
           recruiter actually received.
         </p>
+        <ConsoleMock className="mt-8" />
         <ol className="mt-10 space-y-8">
           {STEPS.map((step) => (
             <li key={step.n} className="flex gap-4">
