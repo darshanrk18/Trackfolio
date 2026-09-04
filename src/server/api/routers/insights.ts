@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { uuidSchema } from "@/server/api/schemas";
@@ -7,11 +7,13 @@ import {
   applications,
   branches,
   contacts,
+  documentVersions,
   notifications,
   watchTerms,
 } from "@/server/db/schema";
 import { analyzeHealth } from "@/lib/analysis/health";
 import { buildActionQueue } from "@/lib/insights/actions";
+import { daysUntil } from "@/lib/utils";
 import {
   conversionBy,
   strategyInsight,
@@ -21,6 +23,77 @@ import { FUNNEL_STAGES, profileLabel } from "@/lib/pipeline";
 import { ensureProfile } from "@/server/auth";
 
 export const insightsRouter = createTRPCRouter({
+  /** Badge + HUD counts for the four-mode shell. Decorative; layout swallows errors. */
+  shell: protectedProcedure.query(async ({ ctx }) => {
+    const profile = await ensureProfile(ctx.user.id);
+    const [apps, people, resumeVersions, coverVersions] = await Promise.all([
+      ctx.db.query.applications.findMany({
+        where: and(
+          eq(applications.userId, ctx.user.id),
+          isNull(applications.archivedAt),
+        ),
+        columns: {
+          id: true,
+          company: true,
+          role: true,
+          status: true,
+          priority: true,
+          appliedOn: true,
+          followUpOn: true,
+          interviewOn: true,
+          updatedAt: true,
+          jobDescription: true,
+          resumeSnapshot: true,
+          nextStep: true,
+        },
+      }),
+      ctx.db.query.contacts.findMany({
+        where: eq(contacts.userId, ctx.user.id),
+        columns: {
+          id: true,
+          name: true,
+          company: true,
+          lastContactedOn: true,
+          nextTouchOn: true,
+          cadenceDays: true,
+        },
+      }),
+      ctx.db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(documentVersions)
+        .where(
+          and(
+            eq(documentVersions.userId, ctx.user.id),
+            eq(documentVersions.kind, "resume"),
+          ),
+        ),
+      ctx.db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(documentVersions)
+        .where(
+          and(
+            eq(documentVersions.userId, ctx.user.id),
+            eq(documentVersions.kind, "cover_letter"),
+          ),
+        ),
+    ]);
+
+    const queue = buildActionQueue({
+      applications: apps,
+      contacts: people,
+      staleAfterDays: profile.staleAfterDays,
+    });
+
+    return {
+      applications: apps.length,
+      actions: queue.length,
+      versions: resumeVersions[0]?.n ?? 0,
+      coverLetters: coverVersions[0]?.n ?? 0,
+      contacts: people.length,
+      urgentActions: queue.filter((item) => item.kind === "urgent").length,
+    };
+  }),
+
   actionQueue: protectedProcedure.query(async ({ ctx }) => {
     const profile = await ensureProfile(ctx.user.id);
     const [apps, people] = await Promise.all([
@@ -150,20 +223,33 @@ export const insightsRouter = createTRPCRouter({
       (a) => a.status === "offer" || a.status === "accepted",
     ).length;
 
+    const upcoming = apps
+      .filter((app) => {
+        const until = daysUntil(app.interviewOn);
+        return until !== null && until >= 0 && until <= 21;
+      })
+      .sort((a, b) => {
+        const left = a.interviewOn ? new Date(a.interviewOn).getTime() : 0;
+        const right = b.interviewOn ? new Date(b.interviewOn).getTime() : 0;
+        return left - right;
+      })
+      .slice(0, 6)
+      .map((app) => ({
+        id: app.id,
+        company: app.company,
+        role: app.role,
+        interviewOn: app.interviewOn,
+        frozen: Boolean(app.resumeSnapshot),
+      }));
+
     return {
       totals: {
         applications: apps.length,
-        active: actions.filter((a) => a.type !== "contact").length
-          ? apps.filter((a) =>
-              ["applied", "screen", "assessment", "interview", "final"].includes(
-                a.status,
-              ),
-            ).length
-          : apps.filter((a) =>
-              ["applied", "screen", "assessment", "interview", "final"].includes(
-                a.status,
-              ),
-            ).length,
+        active: apps.filter((a) =>
+          ["applied", "screen", "assessment", "interview", "final"].includes(
+            a.status,
+          ),
+        ).length,
         interviews,
         offers,
         stale: actions.filter((a) => a.type === "stale").length,
@@ -175,6 +261,7 @@ export const insightsRouter = createTRPCRouter({
         { status: "interview" as const, count: interviews, label: "Interview" },
         { status: "offer" as const, count: offers, label: "Offer" },
       ],
+      smallSample: appliedPlus < 3,
       byStatus,
       health: health
         ? {
@@ -182,10 +269,18 @@ export const insightsRouter = createTRPCRouter({
             grade: health.grade,
             wordCount: health.wordCount,
             bulletCount: health.bulletCount,
+            issues: health.checks
+              .filter((check) => check.state === "fail" || check.state === "warn")
+              .map((check) => ({
+                id: check.id,
+                label: check.label,
+                state: check.state as "fail" | "warn",
+              })),
           }
         : null,
-      actions: actions.slice(0, 6),
+      actions: actions.slice(0, 8),
       actionCount: actions.length,
+      upcoming,
       activity,
     };
   }),
