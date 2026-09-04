@@ -9,8 +9,24 @@ updates:
     groups:
       production:
         dependency-type: production
+        update-types:
+          - "minor"
+          - "patch"
       development:
         dependency-type: development
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      # Next 16 + typescript-eslint 8 still require TS 5 / ESLint 9.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint-config-next"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
