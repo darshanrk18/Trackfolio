@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SKIP_ENV_VALIDATION: "true"
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Lint
+        run: pnpm lint
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Unit tests
+        run: pnpm test
+      - name: Production build
+        run: pnpm build
+
+  e2e:
+    name: E2E (public)
+    needs: verify
+    # Authenticated / journey Playwright is not run here — seed-session writes
+    # users into Postgres, and local/prod currently share the same Neon.
+    if: ${{ secrets.DATABASE_URL != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      AUTH_SECRET: ${{ secrets.AUTH_SECRET || 'ci-only-auth-secret-32-chars-min' }}
+      AUTH_GITHUB_ID: ${{ secrets.AUTH_GITHUB_ID || 'ci-github-client' }}
+      AUTH_GITHUB_SECRET: ${{ secrets.AUTH_GITHUB_SECRET || 'ci-github-secret' }}
+      AUTH_GOOGLE_ID: ${{ secrets.AUTH_GOOGLE_ID || 'ci-google.apps.googleusercontent.com' }}
+      AUTH_GOOGLE_SECRET: ${{ secrets.AUTH_GOOGLE_SECRET || 'ci-google-secret' }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY || 're_ci_dummy_key' }}
+      AUTH_TRUST_HOST: "true"
+      AUTH_URL: http://localhost:3000
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Public e2e
+        run: pnpm test:e2e --project=public
+      - uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 7

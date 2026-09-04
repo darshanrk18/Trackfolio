@@ -43,6 +43,27 @@ Open [http://localhost:3000](http://localhost:3000). Sign in, then:
 | `pnpm db:push` | Sync schema (dev) |
 | `pnpm db:generate` / `pnpm db:migrate` | SQL migrations |
 
+## Git / CI / CD
+
+Work on a branch. Open a pull request into `main`. Do not push product work straight to production.
+
+```
+feature branch  →  pull request  →  CI + Vercel preview  →  merge to main  →  Vercel production
+```
+
+| Gate | What it does |
+| --- | --- |
+| **CI / Verify** | `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` on every PR and on `main` |
+| **CI / E2E (public)** | Playwright landing / sign-in / logged-out redirects. Runs only when the `DATABASE_URL` Actions secret is set. Does **not** run authenticated or journey specs (those insert users into Postgres; local and production still share Neon) |
+| **CodeQL** | Weekly + PR security scan |
+| **Dependabot** | Weekly npm and GitHub Actions PRs |
+| **Vercel Git** | Preview deploy on the PR, production deploy on merge to `main` (`https://trackfolio-bay.vercel.app`) |
+| **CD** | Manual **Run workflow** (and optional auto-deploy after CI if you set repo variable `CD_ON_CI=true` plus `VERCEL_TOKEN`). Leave auto-CD off while Vercel Git is already shipping production |
+
+Protect `main` so **Verify** must pass before merge: GitHub → Settings → Branches → add rule.
+
+E2E secret (optional): repo **Settings → Secrets and variables → Actions** → `DATABASE_URL` (a Neon branch, not production, if you can). `AUTH_SECRET` and OAuth keys are optional; CI fills dummies so `/sign-in` still shows all providers.
+
 ## Deploy on Vercel
 
 1. Create a Neon project and copy the pooled `DATABASE_URL`.
