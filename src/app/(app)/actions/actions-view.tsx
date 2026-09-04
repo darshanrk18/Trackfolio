@@ -1,21 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCw, Zap } from "lucide-react";
 import { useTRPC } from "@/trpc/react";
 import { PageHeader } from "@/components/app/page-header";
+import { ActionQueue } from "@/components/app/action-queue";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { EmptyState, ErrorState, Skeleton, StatCard } from "@/components/ui/feedback";
 import { cn } from "@/lib/utils";
-import type { ActionKind } from "@/lib/insights/actions";
-
-const ACCENT: Record<ActionKind, "bad" | "warn" | "primary"> = {
-  urgent: "bad",
-  soon: "warn",
-  info: "primary",
-};
 
 export function ActionsView() {
   const trpc = useTRPC();
@@ -65,9 +57,9 @@ export function ActionsView() {
       </div>
 
       {queue.isPending ? (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-[88px]" />
+            <Skeleton key={i} className="h-[72px]" />
           ))}
         </div>
       ) : queue.error ? (
@@ -79,26 +71,7 @@ export function ActionsView() {
           description="When a follow-up is due, an interview is this week, or a snapshot is missing, it will land here."
         />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {queue.data.map((action) => (
-            <Card
-              key={action.id}
-              accent={ACCENT[action.kind]}
-              className="flex items-start justify-between gap-3 px-4 py-3.5"
-            >
-              <div className="min-w-0">
-                <p className="text-[13.5px] font-semibold">{action.title}</p>
-                <p className="text-ink-3 mt-0.5 text-[12px]">
-                  {action.meta}
-                  {action.role ? ` · ${action.role}` : ""}
-                </p>
-              </div>
-              <Button variant="secondary" size="sm" asChild>
-                <Link href={action.href}>Open</Link>
-              </Button>
-            </Card>
-          ))}
-        </div>
+        <ActionQueue items={queue.data} />
       )}
     </>
   );
